@@ -4,10 +4,19 @@
 
 #define REVERSE_BIT_ORDER 0
 #define BASELINE_OFFSET 1
+#define GLYPH16_WIDTH 3
+#define GLYPH16_HEIGHT 5
+#define cGLYPHS 95
+#define ROW_SIZE 8
+
+// all chars up to 32 are non-printable
+// space is at 32, but just space - can be special cased
+// ... but is the code to do this more expensive than just adding space?
+// probably...
+#define IndexFromASCII(ascii) (ascii - 32)
+
 
 // IDEA: could have 2 bits per point -> 2 levels between full on and off
-// TODO: decide on distance between letters and lines? or leave to implementation?
-
 char glyph64[64] = 
 //       12345678
 /* 0 */ "        "
@@ -33,35 +42,19 @@ char glyph32[32] =
 unsigned int
 GlyphToBinary(char *Glyph, int size)
 {
-#if REVERSE_BIT_ORDER
-	unsigned int MaxShift = size - 1;
-#endif
 	unsigned int Result = 0;
 	for(unsigned int i = 0; i < size; ++i)
 	{
 		int filled = Glyph[i] == '#' || Glyph[i] == 1;
-		/* putc(filled ? '1' : '0', stdout); */
 		if(filled)
-		{
-#if REVERSE_BIT_ORDER
-			Result |= 1 << (MaxShift-i);
-#else
-			Result |= 1 << i;
-#endif
-		}
+		{ Result |= 1 << i; }
 	}
-	/* putc('\n', stdout); */
 	return Result;
 }
-
-// why don't we do for loops like: for(int i = 0; ++i < end;)
-// also allows for (for-while)   : for(int i = 0; i++ < end;)
 
 void
 GenerateBinaryFromGlyphs(char *Glyphs, int GlyphSize, FILE *File)
 {
-#define cGLYPHS 95
-#define ROW_SIZE 8
 	fprintf(File, "unsigned short Glyphs%u[%u] = {\n", GlyphSize, cGLYPHS);
 	int iGlyph = 0;
 	for(char *Glyph = Glyphs, *LastGlyph = Glyphs + cGLYPHS * GlyphSize;
@@ -80,27 +73,15 @@ GenerateBinaryFromGlyphs(char *Glyphs, int GlyphSize, FILE *File)
 void
 PrintBinaryChar16(unsigned int Glyph)
 {
-#define GLYPHWIDTH 3
-#define GLYPHHEIGHT 5
 	for(int y = 0; y < 5; ++y)
 	{
-		for(int x = 0; x < GLYPHWIDTH; ++x)
+		for(int x = 0; x < GLYPH16_WIDTH; ++x)
 		{
-			int Shift = GLYPHWIDTH * y + x;
+			int Shift = GLYPH16_WIDTH * y + x;
 			putc((Glyph >> Shift) & 1 ? '#' : ' ', stdout);
 		}
 		putc('\n', stdout);
 	}
-}
-
-char
-IndexFromASCII(char letter)
-{
-	// all chars up to 32 are non-printable
-	// space is at 32, but just space - can be special cased
-	// ... but is the code to do this more expensive than just adding space?
-	// probably...
-	return letter - 32;
 }
 
 void
@@ -111,12 +92,12 @@ DrawChar(unsigned char *Buffer, int RowStride, int PixelStride, char c, int xoff
 	{ yoffset += BASELINE_OFFSET; }
 
 	unsigned char *Row = Buffer + yoffset * RowStride + xoffset;
-	for(int y = 0; y < GLYPHHEIGHT; ++y)
+	for(int y = 0; y < GLYPH16_HEIGHT; ++y)
 	{
 		unsigned char *Pixel = Row;
-		for(int x = 0; x < GLYPHWIDTH; ++x)
+		for(int x = 0; x < GLYPH16_WIDTH; ++x)
 		{
-			int Shift = y * GLYPHWIDTH + x;
+			int Shift = y * GLYPH16_WIDTH + x;
 			*Pixel = ((Glyph >> Shift) & 1) ?
 				255 :  // foreground
 				0; // background
@@ -126,8 +107,33 @@ DrawChar(unsigned char *Buffer, int RowStride, int PixelStride, char c, int xoff
 	}
 }
 
+void
+DrawString16(unsigned char *Buffer, int RowStride, int PixelStride, char *String, int StartX, int StartY)
+{
+	for(int x = StartX, y = StartY; *String; ++String)
+	{
+		char c = *String;
+		switch(c)
+		{
+		case '\n':
+			y += GLYPH16_HEIGHT + BASELINE_OFFSET + 1;
+			x = StartX;
+			break;
 
-// 1 bit left over - set descender
+		case '\t':
+			x += 4 * (GLYPH16_WIDTH + 1); 
+			break;
+
+		default:
+			DrawChar(Buffer, RowStride, PixelStride, IndexFromASCII(c), x, y);
+			x += GLYPH16_WIDTH + 1;
+		}
+	}
+}
+
+
+// NOTE: 1 bit left over -> set descender
+
 char GlyphArray16[96][16] = {
 //   32		 	Space
 {/*      012 */
