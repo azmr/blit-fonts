@@ -1,6 +1,9 @@
 #ifndef TINYFONT_H
 
+#include "generatedGlyphs.h"
+
 #define REVERSE_BIT_ORDER 0
+#define BASELINE_OFFSET 1
 
 // IDEA: could have 2 bits per point -> 2 levels between full on and off
 // TODO: decide on distance between letters and lines? or leave to implementation?
@@ -100,6 +103,29 @@ IndexFromASCII(char letter)
 	return letter - 32;
 }
 
+void
+DrawChar(unsigned char *Buffer, int RowStride, int PixelStride, char c, int xoffset, int yoffset)
+{
+	unsigned short Glyph = Glyphs16[c];
+	if(Glyph >> 15 & 1)
+	{ yoffset += BASELINE_OFFSET; }
+
+	unsigned char *Row = Buffer + yoffset * RowStride + xoffset;
+	for(int y = 0; y < GLYPHHEIGHT; ++y)
+	{
+		unsigned char *Pixel = Row;
+		for(int x = 0; x < GLYPHWIDTH; ++x)
+		{
+			int Shift = y * GLYPHWIDTH + x;
+			*Pixel = ((Glyph >> Shift) & 1) ?
+				255 :  // foreground
+				0; // background
+			Pixel += PixelStride;
+		}
+		Row += RowStride;
+	}
+}
+
 
 // 1 bit left over - set descender
 char GlyphArray16[96][16] = {
@@ -154,11 +180,11 @@ char GlyphArray16[96][16] = {
 
 //   38		&	Ampersand
 {/*      012 */
-/* 0 */ "## "
+/* 0 */ " ##"
 /* 1 */ " # "
-/* 2 */ "###"
+/* 2 */ "## "
 /* 3 */ "# #"
-/* 4 */ " ##"},
+/* 4 */ "###"},
 
 //   39		'	Single quote
 {/*      012 */
@@ -613,8 +639,8 @@ char GlyphArray16[96][16] = {
 /* 0 */ "   "
 /* 1 */ "   "
 /* 2 */ "   "
-/* 3 */ "   "
-/* 4 */ "###"}, /* could put below baseline... */
+/* 3 */ "   " /* <-- baseline */
+/* 4 */ "###" "#"},
 
 //   96		`	Grave accent
 {/*      012 */
@@ -626,33 +652,33 @@ char GlyphArray16[96][16] = {
 
 //   97		a	Lowercase a
 {/*      012 */
-/* 0 */ " # "
-/* 1 */ "  #"
-/* 2 */ "###"
+/* 0 */ "   "
+/* 1 */ "## "
+/* 2 */ " ##"
 /* 3 */ "# #"
 /* 4 */ " ##"},
 
 //   98		b	Lowercase b
 {/*      012 */
 /* 0 */ "#  "
-/* 1 */ "#  "
-/* 2 */ "###"
+/* 1 */ "###"
+/* 2 */ "# #"
 /* 3 */ "# #"
 /* 4 */ "## "},
 
 //   99		c	Lowercase c
 {/*      012 */
 /* 0 */ "   "
-/* 1 */ "   "
-/* 2 */ " ##"
+/* 1 */ " ##"
+/* 2 */ "#  "
 /* 3 */ "#  "
 /* 4 */ "###"},
 
 //   100	d	Lowercase d
 {/*      012 */
 /* 0 */ "  #"
-/* 1 */ "  #"
-/* 2 */ " ##"
+/* 1 */ " ##"
+/* 2 */ "# #"
 /* 3 */ "# #"
 /* 4 */ "###"},
 
@@ -666,11 +692,11 @@ char GlyphArray16[96][16] = {
 
 //   102	f	Lowercase f
 {/*      012 */
-/* 0 */ "  #"
+/* 0 */ " ##"
 /* 1 */ " # "
 /* 2 */ "###"
 /* 3 */ " # " /* <-- baseline */
-/* 4 */ "## " "#"},
+/* 4 */ "#  " "#"},
 
 //   103	g	Lowercase g
 {/*      012 */
@@ -683,8 +709,8 @@ char GlyphArray16[96][16] = {
 //   104	h	Lowercase h
 {/*      012 */
 /* 0 */ "#  "
-/* 1 */ "#  "
-/* 2 */ "## "
+/* 1 */ "## "
+/* 2 */ "# #"
 /* 3 */ "# #"
 /* 4 */ "# #"},
 
@@ -702,7 +728,7 @@ char GlyphArray16[96][16] = {
 /* 1 */ "   "
 /* 2 */ " # "
 /* 3 */ " # " /* <-- baseline */
-/* 4 */ "#  " "#"},
+/* 4 */ "## " "#"},
 
 //   107	k	Lowercase k
 {/*      012 */
@@ -718,29 +744,29 @@ char GlyphArray16[96][16] = {
 /* 1 */ " # "
 /* 2 */ " # "
 /* 3 */ " # "
-/* 4 */ "  #"},
+/* 4 */ " ##"},
 
 //   109	m	Lowercase m
 {/*      012 */
 /* 0 */ "   "
-/* 1 */ "   "
+/* 1 */ "# #"
 /* 2 */ "###"
-/* 3 */ "###"
+/* 3 */ "# #"
 /* 4 */ "# #"},
 
 //   110	n	Lowercase n
 {/*      012 */
 /* 0 */ "   "
-/* 1 */ "   "
-/* 2 */ "## "
+/* 1 */ "## "
+/* 2 */ "# #"
 /* 3 */ "# #"
 /* 4 */ "# #"},
 
 //   111	o	Lowercase o
 {/*      012 */
 /* 0 */ "   "
-/* 1 */ "   "
-/* 2 */ " ##"
+/* 1 */ " ##"
+/* 2 */ "# #"
 /* 3 */ "# #"
 /* 4 */ "## "},
 
@@ -748,24 +774,24 @@ char GlyphArray16[96][16] = {
 {/*      012 */
 /* 0 */ " # "
 /* 1 */ "# #"
-/* 2 */ "## "
-/* 3 */ "#  " /* <-- baseline */
+/* 2 */ "# #"
+/* 3 */ "## " /* <-- baseline */
 /* 4 */ "#  " "#"},
 
 //   113	q	Lowercase q
 {/*      012 */
 /* 0 */ " # "
 /* 1 */ "# #"
-/* 2 */ " ##"
-/* 3 */ "  #" /* <-- baseline */
+/* 2 */ "# #"
+/* 3 */ " ##" /* <-- baseline */
 /* 4 */ "  #" "#"},
 
 //   114	r	Lowercase r
 {/*      012 */
 /* 0 */ "   "
-/* 1 */ "   "
-/* 2 */ "## "
-/* 3 */ "# #"
+/* 1 */ " ##"
+/* 2 */ "# #"
+/* 3 */ "#  "
 /* 4 */ "#  "},
 
 //   115	s	Lowercase s
@@ -779,15 +805,15 @@ char GlyphArray16[96][16] = {
 //   116	t	Lowercase t
 {/*      012 */
 /* 0 */ " # "
-/* 1 */ " # "
-/* 2 */ "###"
+/* 1 */ "###"
+/* 2 */ " # "
 /* 3 */ " # "
 /* 4 */ " ##"},
 
 //   117	u	Lowercase u
 {/*      012 */
 /* 0 */ "   "
-/* 1 */ "   "
+/* 1 */ "# #"
 /* 2 */ "# #"
 /* 3 */ "# #"
 /* 4 */ "## "},
@@ -795,7 +821,7 @@ char GlyphArray16[96][16] = {
 //   118	v	Lowercase v
 {/*      012 */
 /* 0 */ "   "
-/* 1 */ "   "
+/* 1 */ "# #"
 /* 2 */ "# #"
 /* 3 */ " # "
 /* 4 */ " # "},
@@ -803,16 +829,16 @@ char GlyphArray16[96][16] = {
 //   119	w	Lowercase w
 {/*      012 */
 /* 0 */ "   "
-/* 1 */ "   "
+/* 1 */ "# #"
 /* 2 */ "# #"
 /* 3 */ "###"
-/* 4 */ "###"},
+/* 4 */ "# #"},
 
 //   120	x	Lowercase x
 {/*      012 */
 /* 0 */ "   "
-/* 1 */ "   "
-/* 2 */ "# #"
+/* 1 */ "# #"
+/* 2 */ " # "
 /* 3 */ " # "
 /* 4 */ "# #"},
 
@@ -827,10 +853,10 @@ char GlyphArray16[96][16] = {
 //   122	z	Lowercase z
 {/*      012 */
 /* 0 */ "   "
-/* 1 */ "   "
-/* 2 */ "## "
-/* 3 */ " # "
-/* 4 */ " ##"},
+/* 1 */ "###"
+/* 2 */ " ##"
+/* 3 */ "#  "
+/* 4 */ "###"},
 
 //   123	{	Opening brace
 {/*      012 */
