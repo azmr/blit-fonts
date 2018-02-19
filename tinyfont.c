@@ -4,15 +4,16 @@
 #define STR(x) STR_(x)
 #define DRAWWIDTH 260
 #define DRAWHEIGHT 70
+#define SCALE 2
 
 int
-DrawLineNum(unsigned char *Buffer, int Stride, int Num, int StartX, int StartY)
+DrawLineNum(unsigned char *Buffer, int Stride, int Num, int StartX, int StartY, unsigned int Size)
 {
-	DrawChar(Buffer, Stride, Num+16, 1, StartX, StartY);
+	DrawChar(Buffer, Stride, Num+16, 1, StartX, StartY, Size, Size);
 	int XOffset = GLYPH16_WIDTH + 1;
-	DrawChar(Buffer, Stride, 1, IndexFromASCII(')'), StartX+XOffset, StartY);
+	DrawChar(Buffer, Stride, 1, IndexFromASCII(')'), StartX+XOffset, StartY, Size, Size);
 	XOffset += GLYPH16_WIDTH + 1;
-	DrawChar(Buffer, Stride, 1, IndexFromASCII(' '), StartX+XOffset, StartY);
+	DrawChar(Buffer, Stride, 1, IndexFromASCII(' '), StartX+XOffset, StartY, Size, Size);
 	XOffset += GLYPH16_WIDTH + 1;
 	return XOffset;
 }
@@ -20,24 +21,28 @@ DrawLineNum(unsigned char *Buffer, int Stride, int Num, int StartX, int StartY)
 int main(int cargs, char **args)
 {
 
-#if 0
+#if GENERATE_GLYPHS
 	FILE *GlyphFile = fopen("generatedGlyphs.h", "w");
 	GenerateBinaryFromGlyphs((char *)GlyphArray16, 16, GlyphFile);
 	fclose(GlyphFile);
 #else
-	unsigned char image[DRAWWIDTH * DRAWHEIGHT] = {0};
+	unsigned char image[SCALE * SCALE * DRAWWIDTH * DRAWHEIGHT] = {0};
 
 	FILE *PGM = fopen("test.pgm", "wb");
-	DrawString16(image, DRAWWIDTH, 1,
+	DrawString16(image, SCALE * DRAWWIDTH, 1,
 			"for(int i = 0; i < 7 && bool == 1; ++i)\n"
 			"{\n"
 			"\tDo_Stuff(Things[a ? i : j]);\n"
 			"}\n"
-			"abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
+			"abcdefghijklmnopqrstuvwxyz\n"
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
+			"!@#$%^&*()-=~`\\\"'\n"
+			"1234567890_+|\n"
+			"email me at `azmreece@gmail.com`\n"
 			,
-			1, 1);
+			SCALE, SCALE, SCALE);
 
-	fputs("P5 "STR(DRAWWIDTH)" "STR(DRAWHEIGHT)" 255\n", PGM);
+	fprintf(PGM, "P5 %u %u 255\n", SCALE * DRAWWIDTH, SCALE * DRAWHEIGHT);
 	fwrite(image, 1, sizeof(image), PGM);
 	fclose(PGM);
 

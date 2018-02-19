@@ -1,5 +1,18 @@
+/*
+IDEAS:
+ - name 'bitcast'?
+ 	- pun on type casting (also a pun) - software and printing press fonts
+	- indicates its low-level/small nature
+
+TODO:
+ - drawln -> better cache efficiency
+ - finish 32-bit glyphs
+ */
 #ifndef TINYFONT_H
 
+#include "glyphs16.h"
+// TODO: glyphs24?
+#include "glyphs32.h"
 #include "generatedGlyphs.h"
 
 #define REVERSE_BIT_ORDER 0
@@ -38,7 +51,7 @@ char glyph32[32] =
 /* 5 */ "#   #";
 // 2 bits left over - set descender/caps/?vert offset (0-3)
 
-//00100011000111111100010101000100
+#if 1 // GLYPH GENERATION/TESTING /////////////////////////////////////////////
 unsigned int
 GlyphToBinary(char *Glyph, int size)
 {
@@ -71,7 +84,7 @@ GenerateBinaryFromGlyphs(char *Glyphs, int GlyphSize, FILE *File)
 }
 
 void
-PrintBinaryChar16(unsigned int Glyph)
+TESTPrintBinaryChar16(unsigned int Glyph)
 {
 	for(int y = 0; y < 5; ++y)
 	{
@@ -83,32 +96,70 @@ PrintBinaryChar16(unsigned int Glyph)
 		putc('\n', stdout);
 	}
 }
+#endif// GLYPH GENERATION/TESTING /////////////////////////////////////////////
 
 void
-DrawChar(unsigned char *Buffer, int RowStride, int PixelStride, char c, int xoffset, int yoffset)
+DrawChar16(unsigned char *Buffer, int RowStride, int PixelStride, char c, int xoffset, int yoffset, unsigned int PixelW, unsigned int PixelH)
+{
+	unsigned short Glyph = Glyphs16[c];
+	if(Glyph >> 15 & 1)
+	{ yoffset += PixelH * BASELINE_OFFSET; }
+
+	unsigned char *Row = Buffer + yoffset * RowStride + xoffset;
+	for(int y = 0; y < GLYPH16_HEIGHT; ++y)
+	{
+		for(int pxY = 0; pxY < PixelH * GLYPH16_HEIGHT; ++pxY)
+		{
+			/* int y = pxY / PixelH; */
+			unsigned char *Pixel = Row;
+			for(int x = 0; x < GLYPH16_WIDTH; ++x)
+			{
+				int Shift = y * GLYPH16_WIDTH + x;
+				unsigned char Value = ((Glyph >> Shift) & 1) ?
+					255 :  // foreground
+					0; // background
+				for(int pxX = 0; pxX < PixelW; ++pxX)
+				{
+					*Pixel = Value;
+					Pixel += PixelStride;
+				}
+			}
+			Row += RowStride;
+		}
+	}
+}
+
+void
+DrawChar(unsigned char *Buffer, int RowStride, int PixelStride, char c, int xoffset, int yoffset, unsigned int PixelW, unsigned int PixelH)
 {
 	unsigned short Glyph = Glyphs16[c];
 	if(Glyph >> 15 & 1)
 	{ yoffset += BASELINE_OFFSET; }
 
 	unsigned char *Row = Buffer + yoffset * RowStride + xoffset;
-	for(int y = 0; y < GLYPH16_HEIGHT; ++y)
+	for(int y = 0; y < GLYPH16_HEIGHT * PixelH; ++y)
 	{
+		int GlyphY = y/PixelH;
+		/* printf("y: %d, GlyphY: %d\n", y, GlyphY); */
 		unsigned char *Pixel = Row;
-		for(int x = 0; x < GLYPH16_WIDTH; ++x)
+		for(int x = 0; x < GLYPH16_WIDTH * PixelW; ++x)
 		{
-			int Shift = y * GLYPH16_WIDTH + x;
-			*Pixel = ((Glyph >> Shift) & 1) ?
+			int GlyphX = x/PixelW;
+			/* printf("\tx: %d, GlyphX: %d\n", x, GlyphX); */
+			int Shift = GlyphY * GLYPH16_WIDTH + GlyphX;
+			unsigned char Value = ((Glyph >> Shift) & 1) ?
 				255 :  // foreground
 				0; // background
+			*Pixel = Value;
 			Pixel += PixelStride;
 		}
+		/* printf("\n"); */
 		Row += RowStride;
 	}
 }
 
 void
-DrawString16(unsigned char *Buffer, int RowStride, int PixelStride, char *String, int StartX, int StartY)
+DrawString16(unsigned char *Buffer, int RowStride, int PixelStride, char *String, int StartX, int StartY, unsigned int Scale)
 {
 	for(int x = StartX, y = StartY; *String; ++String)
 	{
@@ -116,786 +167,21 @@ DrawString16(unsigned char *Buffer, int RowStride, int PixelStride, char *String
 		switch(c)
 		{
 		case '\n':
-			y += GLYPH16_HEIGHT + BASELINE_OFFSET + 1;
+			y += Scale * (GLYPH16_HEIGHT + BASELINE_OFFSET + 1);
 			x = StartX;
 			break;
 
 		case '\t':
-			x += 4 * (GLYPH16_WIDTH + 1); 
+			x += Scale * 4 * (GLYPH16_WIDTH + 1); 
 			break;
 
 		default:
-			DrawChar(Buffer, RowStride, PixelStride, IndexFromASCII(c), x, y);
-			x += GLYPH16_WIDTH + 1;
+			DrawChar(Buffer, RowStride, PixelStride, IndexFromASCII(c), x, y, Scale, Scale);
+			x += Scale * (GLYPH16_WIDTH + 1);
 		}
 	}
 }
 
-
-// NOTE: 1 bit left over -> set descender
-
-char GlyphArray16[96][16] = {
-//   32		 	Space
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ "   "
-/* 2 */ "   "
-/* 3 */ "   "
-/* 4 */ "   "},
-
-//   33		!	Exclamation mark
-{/*      012 */
-/* 0 */ " # "
-/* 1 */ " # "
-/* 2 */ " # "
-/* 3 */ "   "
-/* 4 */ " # "},
-
-//   34		"	Double quotes (or speech marks)
-{/*      012 */
-/* 0 */ "# #"
-/* 1 */ "# #"
-/* 2 */ "   "
-/* 3 */ "   "
-/* 4 */ "   "},
-
-//   35		#	Number
-{/*      012 */
-/* 0 */ "# #"
-/* 1 */ "###"
-/* 2 */ "# #"
-/* 3 */ "###"
-/* 4 */ "# #"},
-
-//   36		$	Dollar
-{/*      012 */
-/* 0 */ " ##"
-/* 1 */ "## "
-/* 2 */ " ##"
-/* 3 */ "## "
-/* 4 */ " # "
-},
-
-//   37		%	Percent
-{/*      012 */
-/* 0 */ "# #"
-/* 1 */ "  #"
-/* 2 */ " # "
-/* 3 */ "#  "
-/* 4 */ "# #"},
-
-//   38		&	Ampersand
-{/*      012 */
-/* 0 */ " ##"
-/* 1 */ " # "
-/* 2 */ "## "
-/* 3 */ "# #"
-/* 4 */ "###"},
-
-//   39		'	Single quote
-{/*      012 */
-/* 0 */ " # "
-/* 1 */ " # "
-/* 2 */ "   "
-/* 3 */ "   "
-/* 4 */ "   "},
-
-//   40		(	Open parenthesis (or open bracket)
-{/*      012 */
-/* 0 */ "  #"
-/* 1 */ " # "
-/* 2 */ " # "
-/* 3 */ " # "
-/* 4 */ "  #"},
-
-//   41		)	Close parenthesis (or close bracket)
-{/*      012 */
-/* 0 */ "#  "
-/* 1 */ " # "
-/* 2 */ " # "
-/* 3 */ " # "
-/* 4 */ "#  "},
-
-//   42		*	Asterisk
-{/*      012 */
-/* 0 */ " # "
-/* 1 */ "###"
-/* 2 */ "# #"
-/* 3 */ "   "
-/* 4 */ "   "},
-
-//   43		+	Plus
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ " # "
-/* 2 */ "###"
-/* 3 */ " # "
-/* 4 */ "   "},
-
-//   44		,	Comma
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ "   "
-/* 2 */ "   "
-/* 3 */ " # "
-/* 4 */ "#  "},
-
-//   45		-	Hyphen
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ "   "
-/* 2 */ "###"
-/* 3 */ "   "
-/* 4 */ "   "},
-
-//   46		.	Period, dot or full stop
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ "   "
-/* 2 */ "   "
-/* 3 */ " # "
-/* 4 */ "   "},
-
-//   47		/	Slash or divide
-{/*      012 */
-/* 0 */ "  #"
-/* 1 */ "  #"
-/* 2 */ " # "
-/* 3 */ "#  "
-/* 4 */ "#  "},
-
-//   48		0	Zero
-{/*      012 */
-/* 0 */ " # "
-/* 1 */ "# #"
-/* 2 */ "# #"
-/* 3 */ "# #"
-/* 4 */ " # "},
-
-//   49		1	One
-{/*      012 */
-/* 0 */ " # "
-/* 1 */ "## "
-/* 2 */ " # "
-/* 3 */ " # "
-/* 4 */ "###"},
-
-//   50		2	Two
-{/*      012 */
-/* 0 */ " # "
-/* 1 */ "# #"
-/* 2 */ "  #"
-/* 3 */ " # "
-/* 4 */ "###"},
-
-//   51		3	Three
-{/*      012 */
-/* 0 */ "## "
-/* 1 */ "  #"
-/* 2 */ " # "
-/* 3 */ "  #"
-/* 4 */ "## "},
-
-//   52		4	Four
-{/*      012 */
-/* 0 */ " # "
-/* 1 */ "#  "
-/* 2 */ "# #"
-/* 3 */ "###"
-/* 4 */ "  #"},
-
-//   53		5	Five
-{/*      012 */
-/* 0 */ "###"
-/* 1 */ "#  "
-/* 2 */ "## "
-/* 3 */ "  #"
-/* 4 */ "## "},
-
-//   54		6	Six
-{/*      012 */
-/* 0 */ " ##"
-/* 1 */ "#  "
-/* 2 */ "###"
-/* 3 */ "# #"
-/* 4 */ "## "},
-
-//   55		7	Seven
-{/*      012 */
-/* 0 */ "###"
-/* 1 */ "  #"
-/* 2 */ " # "
-/* 3 */ "#  "
-/* 4 */ "#  "},
-
-//   56		8	Eight
-{/*      012 */
-/* 0 */ " ##"
-/* 1 */ "# #"
-/* 2 */ " # "
-/* 3 */ "# #"
-/* 4 */ "## "},
-
-//   57		9	Nine
-{/*      012 */
-/* 0 */ " ##"
-/* 1 */ "# #"
-/* 2 */ " ##"
-/* 3 */ "  #"
-/* 4 */ "  #"},
-
-//   58		:	Colon
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ " # "
-/* 2 */ "   "
-/* 3 */ " # "
-/* 4 */ "   "},
-
-//   59		;	Semicolon
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ " # "
-/* 2 */ "   "
-/* 3 */ " # "
-/* 4 */ "#  "},
-
-//   60		<	Less than (or open angled bracket)
-{/*      012 */
-/* 0 */ "  #"
-/* 1 */ " # "
-/* 2 */ "#  "
-/* 3 */ " # "
-/* 4 */ "  #"},
-
-//   61		=	Equals
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ "###"
-/* 2 */ "   "
-/* 3 */ "###"
-/* 4 */ "   "},
-
-//   62		>	Greater than (or close angled bracket)
-{/*      012 */
-/* 0 */ "#  "
-/* 1 */ " # "
-/* 2 */ "  #"
-/* 3 */ " # "
-/* 4 */ "#  "},
-
-//   63		?	Question mark
-{/*      012 */
-/* 0 */ "## "
-/* 1 */ "  #"
-/* 2 */ "## "
-/* 3 */ "   "
-/* 4 */ "#  "},
-
-//   64		@	At symbol
-{/*      012 */
-/* 0 */ " ##"
-/* 1 */ "###"
-/* 2 */ "###"
-/* 3 */ "#  "
-/* 4 */ "###"},
-
-//   65		A	Uppercase A
-{/*      012 */
-/* 0 */ " # "
-/* 1 */ "###"
-/* 2 */ "# #"
-/* 3 */ "###"
-/* 4 */ "# #"},
-
-//   66		B	Uppercase B
-{/*      012 */
-/* 0 */ "## "
-/* 1 */ "# #"
-/* 2 */ "###"
-/* 3 */ "# #"
-/* 4 */ "## "},
-
-//   67		C	Uppercase C
-{/*      012 */
-/* 0 */ " ##"
-/* 1 */ "#  "
-/* 2 */ "#  "
-/* 3 */ "#  "
-/* 4 */ " ##"},
-
-//   68		D	Uppercase D
-{/*      012 */
-/* 0 */ "## "
-/* 1 */ "# #"
-/* 2 */ "# #"
-/* 3 */ "# #"
-/* 4 */ "## "},
-
-//   69		E	Uppercase E
-{/*      012 */
-/* 0 */ "###"
-/* 1 */ "#  "
-/* 2 */ "###"
-/* 3 */ "#  "
-/* 4 */ "###"},
-
-//   70		F	Uppercase F
-{/*      012 */
-/* 0 */ "###"
-/* 1 */ "#  "
-/* 2 */ "###"
-/* 3 */ "#  "
-/* 4 */ "#  "},
-
-//   71		G	Uppercase G
-{/*      012 */
-/* 0 */ " ##"
-/* 1 */ "#  "
-/* 2 */ "# #"
-/* 3 */ "# #"
-/* 4 */ " ##"},
-
-//   72		H	Uppercase H
-{/*      012 */
-/* 0 */ "# #"
-/* 1 */ "# #"
-/* 2 */ "###"
-/* 3 */ "# #"
-/* 4 */ "# #"},
-
-//   73		I	Uppercase I
-{/*      012 */
-/* 0 */ "###"
-/* 1 */ " # "
-/* 2 */ " # "
-/* 3 */ " # "
-/* 4 */ "###"},
-
-//   74		J	Uppercase J
-{/*      012 */
-/* 0 */ "###"
-/* 1 */ "  #"
-/* 2 */ "  #"
-/* 3 */ "# #"
-/* 4 */ " # "},
-
-//   75		K	Uppercase K
-{/*      012 */
-/* 0 */ "# #"
-/* 1 */ "## "
-/* 2 */ "## "
-/* 3 */ "# #"
-/* 4 */ "# #"},
-
-//   76		L	Uppercase L
-{/*      012 */
-/* 0 */ "#  "
-/* 1 */ "#  "
-/* 2 */ "#  "
-/* 3 */ "#  "
-/* 4 */ "###"},
-
-//   77		M	Uppercase M
-{/*      012 */
-/* 0 */ "# #"
-/* 1 */ "###"
-/* 2 */ "# #"
-/* 3 */ "# #"
-/* 4 */ "# #"},
-
-//   78		N	Uppercase N
-{/*      012 */
-/* 0 */ "## "
-/* 1 */ "# #"
-/* 2 */ "# #"
-/* 3 */ "# #"
-/* 4 */ "# #"},
-
-//   79		O	Uppercase O
-{/*      012 */
-/* 0 */ " ##"
-/* 1 */ "# #"
-/* 2 */ "# #"
-/* 3 */ "# #"
-/* 4 */ "## "},
-
-//   80		P	Uppercase P
-{/*      012 */
-/* 0 */ "## "
-/* 1 */ "# #"
-/* 2 */ "## "
-/* 3 */ "#  "
-/* 4 */ "#  "},
-
-//   81		Q	Uppercase Q
-{/*      012 */
-/* 0 */ "###"
-/* 1 */ "# #"
-/* 2 */ "# #"
-/* 3 */ "###"
-/* 4 */ "  #"},
-
-//   82		R	Uppercase R
-{/*      012 */
-/* 0 */ "## "
-/* 1 */ "# #"
-/* 2 */ "## "
-/* 3 */ "# #"
-/* 4 */ "# #"},
-
-//   83		S	Uppercase S
-{/*      012 */
-/* 0 */ " ##"
-/* 1 */ "#  "
-/* 2 */ " # "
-/* 3 */ "  #"
-/* 4 */ "## "},
-
-//   84		T	Uppercase T
-{/*      012 */
-/* 0 */ "###"
-/* 1 */ " # "
-/* 2 */ " # "
-/* 3 */ " # "
-/* 4 */ " # "},
-
-//   85		U	Uppercase U
-{/*      012 */
-/* 0 */ "# #"
-/* 1 */ "# #"
-/* 2 */ "# #"
-/* 3 */ "# #"
-/* 4 */ " ##"},
-
-//   86		V	Uppercase V
-{/*      012 */
-/* 0 */ "# #"
-/* 1 */ "# #"
-/* 2 */ "# #"
-/* 3 */ " # "
-/* 4 */ " # "},
-
-//   87		W	Uppercase W
-{/*      012 */
-/* 0 */ "# #"
-/* 1 */ "# #"
-/* 2 */ "# #"
-/* 3 */ "###"
-/* 4 */ "# #"},
-
-//   88		X	Uppercase X
-{/*      012 */
-/* 0 */ "# #"
-/* 1 */ "# #"
-/* 2 */ " # "
-/* 3 */ "# #"
-/* 4 */ "# #"},
-
-//   89		Y	Uppercase Y
-{/*      012 */
-/* 0 */ "# #"
-/* 1 */ "# #"
-/* 2 */ " # "
-/* 3 */ " # "
-/* 4 */ " # "},
-
-//   90		Z	Uppercase Z
-{/*      012 */
-/* 0 */ "###"
-/* 1 */ "  #"
-/* 2 */ " # "
-/* 3 */ "#  "
-/* 4 */ "###"},
-
-//   91		[	Opening bracket
-{/*      012 */
-/* 0 */ " ##"
-/* 1 */ " # "
-/* 2 */ " # "
-/* 3 */ " # "
-/* 4 */ " ##"},
-
-//   92		\	Backslash
-{/*      012 */
-/* 0 */ "#  "
-/* 1 */ "#  "
-/* 2 */ " # "
-/* 3 */ "  #"
-/* 4 */ "  #"},
-
-//   93		]	Closing bracket
-{/*      012 */
-/* 0 */ "## "
-/* 1 */ " # "
-/* 2 */ " # "
-/* 3 */ " # "
-/* 4 */ "## "},
-
-//   94		^	Caret - circumflex
-{/*      012 */
-/* 0 */ " # "
-/* 1 */ "# #"
-/* 2 */ "   "
-/* 3 */ "   "
-/* 4 */ "   "},
-
-//   95		_	Underscore
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ "   "
-/* 2 */ "   "
-/* 3 */ "   " /* <-- baseline */
-/* 4 */ "###" "#"},
-
-//   96		`	Grave accent
-{/*      012 */
-/* 0 */ "#  "
-/* 1 */ " # "
-/* 2 */ "   "
-/* 3 */ "   "
-/* 4 */ "   "},
-
-//   97		a	Lowercase a
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ "## "
-/* 2 */ " ##"
-/* 3 */ "# #"
-/* 4 */ " ##"},
-
-//   98		b	Lowercase b
-{/*      012 */
-/* 0 */ "#  "
-/* 1 */ "###"
-/* 2 */ "# #"
-/* 3 */ "# #"
-/* 4 */ "## "},
-
-//   99		c	Lowercase c
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ " ##"
-/* 2 */ "#  "
-/* 3 */ "#  "
-/* 4 */ "###"},
-
-//   100	d	Lowercase d
-{/*      012 */
-/* 0 */ "  #"
-/* 1 */ " ##"
-/* 2 */ "# #"
-/* 3 */ "# #"
-/* 4 */ "###"},
-
-//   101	e	Lowercase e
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ " # "
-/* 2 */ "# #"
-/* 3 */ "## "
-/* 4 */ " ##"},
-
-//   102	f	Lowercase f
-{/*      012 */
-/* 0 */ " ##"
-/* 1 */ " # "
-/* 2 */ "###"
-/* 3 */ " # " /* <-- baseline */
-/* 4 */ "#  " "#"},
-
-//   103	g	Lowercase g
-{/*      012 */
-/* 0 */ " ##"
-/* 1 */ "# #"
-/* 2 */ "###"
-/* 3 */ "  #" /* <-- baseline */
-/* 4 */ "## " "#"},
-
-//   104	h	Lowercase h
-{/*      012 */
-/* 0 */ "#  "
-/* 1 */ "## "
-/* 2 */ "# #"
-/* 3 */ "# #"
-/* 4 */ "# #"},
-
-//   105	i	Lowercase i
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ " # "
-/* 2 */ "   "
-/* 3 */ " # "
-/* 4 */ " ##"},
-
-//   106	j	Lowercase j
-{/*      012 */
-/* 0 */ " # "
-/* 1 */ "   "
-/* 2 */ " # "
-/* 3 */ " # " /* <-- baseline */
-/* 4 */ "## " "#"},
-
-//   107	k	Lowercase k
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ "# #"
-/* 2 */ "## "
-/* 3 */ "## "
-/* 4 */ "# #"},
-
-//   108	l	Lowercase l
-{/*      012 */
-/* 0 */ " # "
-/* 1 */ " # "
-/* 2 */ " # "
-/* 3 */ " # "
-/* 4 */ " ##"},
-
-//   109	m	Lowercase m
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ "# #"
-/* 2 */ "###"
-/* 3 */ "# #"
-/* 4 */ "# #"},
-
-//   110	n	Lowercase n
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ "## "
-/* 2 */ "# #"
-/* 3 */ "# #"
-/* 4 */ "# #"},
-
-//   111	o	Lowercase o
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ " ##"
-/* 2 */ "# #"
-/* 3 */ "# #"
-/* 4 */ "## "},
-
-//   112	p	Lowercase p
-{/*      012 */
-/* 0 */ " # "
-/* 1 */ "# #"
-/* 2 */ "# #"
-/* 3 */ "## " /* <-- baseline */
-/* 4 */ "#  " "#"},
-
-//   113	q	Lowercase q
-{/*      012 */
-/* 0 */ " # "
-/* 1 */ "# #"
-/* 2 */ "# #"
-/* 3 */ " ##" /* <-- baseline */
-/* 4 */ "  #" "#"},
-
-//   114	r	Lowercase r
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ " ##"
-/* 2 */ "# #"
-/* 3 */ "#  "
-/* 4 */ "#  "},
-
-//   115	s	Lowercase s
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ " ##"
-/* 2 */ "## "
-/* 3 */ "  #"
-/* 4 */ "## "},
-
-//   116	t	Lowercase t
-{/*      012 */
-/* 0 */ " # "
-/* 1 */ "###"
-/* 2 */ " # "
-/* 3 */ " # "
-/* 4 */ " ##"},
-
-//   117	u	Lowercase u
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ "# #"
-/* 2 */ "# #"
-/* 3 */ "# #"
-/* 4 */ "## "},
-
-//   118	v	Lowercase v
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ "# #"
-/* 2 */ "# #"
-/* 3 */ " # "
-/* 4 */ " # "},
-
-//   119	w	Lowercase w
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ "# #"
-/* 2 */ "# #"
-/* 3 */ "###"
-/* 4 */ "# #"},
-
-//   120	x	Lowercase x
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ "# #"
-/* 2 */ " # "
-/* 3 */ " # "
-/* 4 */ "# #"},
-
-//   121	y	Lowercase y
-{/*      012 */
-/* 0 */ "# #"
-/* 1 */ "# #"
-/* 2 */ " ##"
-/* 3 */ "  #"
-/* 4 */ "## " "#"},
-
-//   122	z	Lowercase z
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ "###"
-/* 2 */ " ##"
-/* 3 */ "#  "
-/* 4 */ "###"},
-
-//   123	{	Opening brace
-{/*      012 */
-/* 0 */ " ##"
-/* 1 */ " # "
-/* 2 */ "## "
-/* 3 */ " # "
-/* 4 */ " ##"},
-             
-//   124	\	Vertical bar
-{/*      012 */
-/* 0 */ " # "
-/* 1 */ " # "
-/* 2 */ " # "
-/* 3 */ " # "
-/* 4 */ " # "},
-             
-//   125	]	Closing brace
-{/*      012 */
-/* 0 */ "## "
-/* 1 */ " # "
-/* 2 */ " ##"
-/* 3 */ " # "
-/* 4 */ "## "},
-
-//   126	~	Equivalency sign - tilde
-{/*      012 */
-/* 0 */ "   "
-/* 1 */ "  #"
-/* 2 */ "###"
-/* 3 */ "#  "
-/* 4 */ "   "},
-};
 
 /*  ASCII TABLE
 //   32		 	Space
