@@ -27,6 +27,7 @@ TODO:
 // ... but is the code to do this more expensive than just adding space?
 // probably...
 #define IndexFromASCII(ascii) (ascii - 32)
+#define ASCIIFromIndex(index) (index + 32)
 
 
 // IDEA: could have 2 bits per point -> 2 levels between full on and off
@@ -99,22 +100,37 @@ TESTPrintBinaryChar16(unsigned int Glyph)
 #endif// GLYPH GENERATION/TESTING /////////////////////////////////////////////
 
 void
-DrawChar16(unsigned char *Buffer, int RowStride, int PixelStride, char c, int xoffset, int yoffset, unsigned int PixelW, unsigned int PixelH)
+DrawChar16(unsigned int*Buffer, int RowStride, char c, unsigned int Value, int xoffset, int yoffset, unsigned int PixelW, unsigned int PixelH)
 {
 	unsigned short Glyph = Glyphs16[c];
 	if(Glyph >> 15 & 1)
 	{ yoffset += PixelH * BASELINE_OFFSET; }
 
-	unsigned char *Row = Buffer + yoffset * RowStride + xoffset;
+	unsigned int *Row = Buffer + yoffset * RowStride + xoffset;
 	for(int y = 0; y < GLYPH16_HEIGHT; ++y)
 	{
-		for(int pxY = 0; pxY < PixelH * GLYPH16_HEIGHT; ++pxY)
+		for(int pxY = 0; pxY < PixelH; ++pxY)
 		{
 			/* int y = pxY / PixelH; */
-			unsigned char *Pixel = Row;
+			unsigned int *Pixel = Row;
 			for(int x = 0; x < GLYPH16_WIDTH; ++x)
 			{
 				int Shift = y * GLYPH16_WIDTH + x;
+#if 1
+				int PixelDrawn = ((Glyph >> Shift) & 1);
+				if(PixelDrawn) // use lerp-like thing to avoid branch?
+				{
+					for(int pxX = 0; pxX < PixelW; ++pxX)
+					{
+						*Pixel = Value;
+						++Pixel;// += PixelStride;
+					}
+				}
+				else
+				{
+					Pixel += PixelW;// * PixelStride;
+				}
+#else
 				unsigned char Value = ((Glyph >> Shift) & 1) ?
 					255 :  // foreground
 					0; // background
@@ -123,6 +139,7 @@ DrawChar16(unsigned char *Buffer, int RowStride, int PixelStride, char c, int xo
 					*Pixel = Value;
 					Pixel += PixelStride;
 				}
+#endif
 			}
 			Row += RowStride;
 		}
@@ -159,7 +176,7 @@ DrawChar(unsigned char *Buffer, int RowStride, int PixelStride, char c, int xoff
 }
 
 void
-DrawString16(unsigned char *Buffer, int RowStride, int PixelStride, char *String, int StartX, int StartY, unsigned int Scale)
+DrawString16(unsigned int *Buffer, int RowStride, char *String, int StartX, int StartY, unsigned int Scale)
 {
 	for(int x = StartX, y = StartY; *String; ++String)
 	{
@@ -176,7 +193,7 @@ DrawString16(unsigned char *Buffer, int RowStride, int PixelStride, char *String
 			break;
 
 		default:
-			DrawChar(Buffer, RowStride, PixelStride, IndexFromASCII(c), x, y, Scale, Scale);
+			DrawChar16(Buffer, RowStride, IndexFromASCII(c), 255, x, y, Scale, Scale);
 			x += Scale * (GLYPH16_WIDTH + 1);
 		}
 	}

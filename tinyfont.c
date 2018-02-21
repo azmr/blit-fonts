@@ -2,9 +2,10 @@
 #include "tinyfont.h"
 #define STR_(x) #x
 #define STR(x) STR_(x)
-#define DRAWWIDTH 260
-#define DRAWHEIGHT 70
-#define SCALE 2
+#define DRAWWIDTH 198
+#define DRAWHEIGHT 72
+#define SCALE 8
+#define PADDING sizeof(int)
 
 int
 DrawLineNum(unsigned char *Buffer, int Stride, int Num, int StartX, int StartY, unsigned int Size)
@@ -20,20 +21,20 @@ DrawLineNum(unsigned char *Buffer, int Stride, int Num, int StartX, int StartY, 
 
 int main(int cargs, char **args)
 {
-
 #if GENERATE_GLYPHS
 	FILE *GlyphFile = fopen("generatedGlyphs.h", "w");
 	GenerateBinaryFromGlyphs((char *)GlyphArray16, 16, GlyphFile);
 	fclose(GlyphFile);
 #else
-	unsigned char image[SCALE * SCALE * DRAWWIDTH * DRAWHEIGHT] = {0};
+	unsigned int image[SCALE * SCALE * DRAWWIDTH * DRAWHEIGHT] = {0};
 
 	FILE *PGM = fopen("test.pgm", "wb");
-	DrawString16(image, SCALE * DRAWWIDTH, 1,
+	DrawString16(image, SCALE * DRAWWIDTH, 
 			"for(int i = 0; i < 7 && bool == 1; ++i)\n"
 			"{\n"
 			"\tDo_Stuff(Things[a ? i : j]);\n"
 			"}\n"
+			"Not too bad!\n"
 			"abcdefghijklmnopqrstuvwxyz\n"
 			"ABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
 			"!@#$%^&*()-=~`\\\"'\n"
@@ -42,8 +43,12 @@ int main(int cargs, char **args)
 			,
 			SCALE, SCALE, SCALE);
 
-	fprintf(PGM, "P5 %u %u 255\n", SCALE * DRAWWIDTH, SCALE * DRAWHEIGHT);
-	fwrite(image, 1, sizeof(image), PGM);
+	fprintf(PGM, "P2 %u %u 255\n", SCALE * DRAWWIDTH, SCALE * DRAWHEIGHT);
+	for(int i = 0; i < sizeof(image)/sizeof(*image); ++i)
+	{
+		fprintf(PGM, "%u ", image[i]);
+	}
+	/* fwrite(image, 1, sizeof(image), PGM); */
 	fclose(PGM);
 
 #endif
