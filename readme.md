@@ -1,12 +1,12 @@
-# Bitcast
+# Blit fonts
  _Small, fast, and simple bitmap fonts in single-file C headers_
 
 These are not intended as a replacement for fancy user fonts.
-I see them being useful for quickly getting up debug text on a PC, or for embedded developers with limited memory.
+I see them being useful for quickly getting up debug text on a PC without having to link an external font file, or for embedded developers with limited memory.
 
 ## Contents
-- [bitcast16](#bitcast16)
-- [bitcast32](#bitcast32)
+- [blit16](#blit16)
+- [blit32](#blit32)
 - [API](#api)
 	- [Functions](#functions)
 	- [Constants](#constants)
@@ -14,11 +14,11 @@ I see them being useful for quickly getting up debug text on a PC, or for embedd
 - [How it works](#how-it-works)
 - [Recommended Libraries](#recommended-libraries)
 
-## bitcast16
-![bitcast16 glyphs](img/bitcast16.png)
+## blit16
+![blit16 glyphs](img/blit16.png)
 
-## bitcast32
-![bitcast32 glyphs](img/bitcast32.png)
+## blit32
+![blit32 glyphs](img/blit32.png)
 
 ## API
 _Replace the prefix if using a different font._
@@ -26,7 +26,7 @@ _Replace the prefix if using a different font._
 ### Functions
 ``` c
 /* Draw strings into a uint-based pixel buffer. Overwrites any pixels drawn to (no transparency). */
-bitcast16_String(unsigned int *Buffer, int RowStride, char *String, int StartX, int StartY, int Scale, unsigned int Col)
+blit16_String(unsigned int *Buffer, int RowStride, char *String, int StartX, int StartY, int Scale, unsigned int Col)
 /* Buffer         - the array of pixels that you're drawing into.
  * Rowstride      - the number of pixels you have to traverse in the buffer to move
  *                  down one row. Negate the value if your buffer's y is 0 at the bottom.
@@ -39,7 +39,7 @@ bitcast16_String(unsigned int *Buffer, int RowStride, char *String, int StartX, 
  */
 
 /* Draw characters into a uint-based pixel buffer. Overwrites any pixels drawn to (no transparency). */
-bitcast16_Char(unsigned int *Buffer, int RowStride, int DrawDir, char c, unsigned int Value, int xoffset, int yoffset, unsigned int PixelW, unsigned int PixelH)
+blit16_Char(unsigned int *Buffer, int RowStride, int DrawDir, char c, unsigned int Value, int xoffset, int yoffset, unsigned int PixelW, unsigned int PixelH)
 /* Buffer           - the array of pixels that you're drawing into.
  * Rowstride        - the number of pixels you have to traverse in the buffer to move
  *                    down one row. Negate the value if your buffer's y is 0 at the bottom.
@@ -52,25 +52,25 @@ bitcast16_Char(unsigned int *Buffer, int RowStride, int DrawDir, char c, unsigne
  *                    Could be AARRGGBB, RRGGBBAA or any other formation.
  */
 
-/* Convert between ASCII number (or character literals) and the associated glyph index. */
-bitcast_IndexFromASCII(unsigned int ascii);
-bitcast_ASCIIFromIndex(unsigned int index);
+/* Convert between ASCII code (or character literals) and the associated glyph index. */
+blit_IndexFromASCII(unsigned int ascii);
+blit_ASCIIFromIndex(unsigned int index);
 ```
 
 ### Constants
 ``` c
                           /* (all dimensions in glyph pixels)                    */
-BITCAST16_WIDTH           /* Width of glyphs                                     */
-BITCAST16_HEIGHT          /* Height of glyphs                                    */
-BITCAST16_STRIDE          /* Distance between start of 1 character and the next  */
-BITCAST16_MAX_DESCENDER   /* Maximum distance of descenders below baseline       */
-BITCAST16_BASELINE_OFFSET /* Distance between baseline and top of next character */
-BITCAST16_ROW_ADVANCE     /* Distance between baseline of 1 row and the next     */
+BLIT16_WIDTH           /* Width of glyphs                                     */
+BLIT16_HEIGHT          /* Height of glyphs                                    */
+BLIT16_STRIDE          /* Distance between start of 1 character and the next  */
+BLIT16_MAX_DESCENDER   /* Maximum distance of descenders below baseline       */
+BLIT16_BASELINE_OFFSET /* Distance between baseline and top of next character */
+BLIT16_ROW_ADVANCE     /* Distance between baseline of 1 row and the next     */
 ```
 
 ### Types
 ``` c
-typedef unsigned short bitcast16_glyph;
+typedef unsigned short blit16_glyph;
 ```
 
 ## How it works 
@@ -91,7 +91,7 @@ char Glyph_One[] =
 " # ##  #  # ###"
 ```
 ...which can be easily translated to bits by treating spaces as 0s and #s as 1s.
-(This is reversed because I found it slightly more convenient that way round.)
+(This is reversed because processing it is slightly more convenient that way round.)
 ``` c
  111010010011010
 ```
@@ -101,9 +101,9 @@ char Glyph_One[] =
 ```
 4) Collect a lot of these into an array, sorted in the ASCII code order (omitting the non-printable characters, starting with space at ASCII code 32).
 ``` c
-typedef unsigned short bitcast16_glyph;
+typedef unsigned short blit16_glyph;
 
-bitcast16_glyph bitcast16_Glyphs[95] = {
+blit16_glyph blit16_Glyphs[95] = {
 0x0000,0x2092,0x002d,0x5f7d,0x279e,0x52a5,0x7ad6,0x0012,
 0x4494,0x1491,0x017a,0x05d0,0x1400,0x01c0,0x0400,0x12a4,
 0x2b6a,0x749a,0x752a,0x38a3,0x4f4a,0x38cf,0x3bce,0x12a7,
@@ -125,6 +125,6 @@ The 16th is set as a flag for shifting the character's pixel grid down, to allow
 Depending on the glyph type and aspect ratio, there may be no space for such a flag, or for multiple (e.g. 0-3 descender levels for a 32-bit glyph: `(5 * 6) % 32 == 2; 1 << 2 == 4;`)
 
 ## Recommended Libraries
-- [sweet](https://github.com/azmr/sweet) (my single-header test suite)
+- [sweet](https://github.com/azmr/sweet) (my single-header C test suite)
 - [live_edit](https://github.com/azmr/live_edit) (my single-header C library-loading/tweaking/debugging/profiling tools)
 - [STB libraries](https://github.com/nothings/stb) (lots of excellent single-header libraries, including `stb_truetype.h` for when you want proper fonts)
