@@ -21,6 +21,9 @@ bitcast32_glyph bitcast32_Glyphs[95] = {
 #define BITCAST32_WIDTH  5
 #define BITCAST32_HEIGHT 6
 #define BITCAST32_STRIDE (BITCAST32_WIDTH + 1)
+#define BITCAST32_MAX_DESCENDER 2
+#define BITCAST32_BASELINE_OFFSET (BITCAST32_MAX_DESCENDER + 1)
+#define BITCAST32_ROW_ADVANCE (BITCAST32_HEIGHT + BITCAST32_BASELINE_OFFSET)
 
 // all chars up to 32 are non-printable
 // space is at 32, but just space - can be special cased
@@ -32,11 +35,11 @@ bitcast32_glyph bitcast32_Glyphs[95] = {
 #endif
 
 void
-bitcast32_Char(unsigned int *Buffer, int RowStride, int Dir, char c, unsigned int Value, int xoffset, int yoffset, unsigned int PixelW, unsigned int PixelH)
+bitcast32_Char(unsigned int *Buffer, int RowStride, int DrawDir, char c, unsigned int Value, int xoffset, int yoffset, unsigned int PixelW, unsigned int PixelH)
 {
 	bitcast32_glyph Glyph = bitcast32_Glyphs[c];
-	yoffset += (2 * (Glyph >> 30 & 1) + (Glyph >> 31 & 1)) * Dir * PixelH;
-	unsigned int *Row = Buffer + yoffset * Dir * RowStride + xoffset;
+	yoffset += (2 * (Glyph >> 30 & 1) + (Glyph >> 31 & 1)) * DrawDir * PixelH;
+	unsigned int *Row = Buffer + yoffset * DrawDir * RowStride + xoffset;
 	for(unsigned int y = 0; y < BITCAST32_HEIGHT; ++y)
 		for(unsigned int pxY = PixelH; pxY--; Row += RowStride)
 			for(unsigned int x = 0, *Pixel = Row; x < BITCAST32_WIDTH; ++x)
@@ -44,9 +47,9 @@ bitcast32_Char(unsigned int *Buffer, int RowStride, int Dir, char c, unsigned in
 				unsigned int Shift = y * BITCAST32_WIDTH + x;
 				unsigned int PixelDrawn = (Glyph >> Shift) & 1;
 				if(PixelDrawn)
-					for(unsigned int pxX = PixelW;
+					for(unsigned int pxX = PixelW, pxVal = *Pixel;
 						pxX--;
-						*Pixel++ = !PixelDrawn * *Pixel + PixelDrawn * Value);
+						pxVal = *Pixel, *Pixel++ = !PixelDrawn * pxVal + PixelDrawn * Value);
 				else { Pixel += PixelW; }
 			}
 }
@@ -54,22 +57,20 @@ bitcast32_Char(unsigned int *Buffer, int RowStride, int Dir, char c, unsigned in
 void
 bitcast32_String(unsigned int *Buffer, int RowStride, char *String, int StartX, int StartY, int Scale, unsigned int Col)
 {
-	BEGIN_TIMED_BLOCK;
-	int Dir = RowStride < 0 ? -1 : 1;
+	int DrawDir = RowStride < 0 ? -1 : 1;
 	for(int x = StartX, y = StartY; *String; ++String)
 	{
 		char c = *String;
 		switch(c)
 		{
-			default: bitcast32_Char(Buffer, RowStride, Dir, bitcast_IndexFromASCII(c), Col, x, y, Scale, Scale); // fallthrough
-			case  ' ': x +=       Scale * BITCAST32_STRIDE; break; // space: no need to touch pixels
-			case '\t': x +=   4 * Scale * BITCAST32_STRIDE; break; // tab: add 4 spaces
-			case '\b': x -=       Scale * BITCAST32_STRIDE; break; // non-destructive backspace
-			case '\n': y += Dir * Scale * (BITCAST32_HEIGHT + BITCAST32_BASELINE_OFFSET + 1);                              // fallthrough
-			case '\r': x = StartX;                             break;
+			default: bitcast32_Char(Buffer, RowStride, DrawDir, bitcast_IndexFromASCII(c), Col, x, y, Scale, Scale); // fallthrough
+			case  ' ': x +=           Scale * BITCAST32_STRIDE; break; // space: no need to touch pixels
+			case '\t': x +=       4 * Scale * BITCAST32_STRIDE; break; // tab: add 4 spaces
+			case '\b': x -=           Scale * BITCAST32_STRIDE; break; // non-destructive backspace
+			case '\n': y += DrawDir * Scale * BITCAST32_ROW_ADVANCE;   // fallthrough
+			case '\r': x = StartX;                              break;
 		}
 	}
-	END_TIMED_BLOCK;
 }
 
 #define BITCAST32_H

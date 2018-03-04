@@ -19,11 +19,12 @@ bitcast16_glyph bitcast16_Glyphs[95] = {
 0x54a8,0xb9ad,0x73b8,0x64d6,0x2492,0x3593,0x03e0,
 };
 
-#define BITCAST16_BASELINE_OFFSET 1
 #define BITCAST16_WIDTH 3
 #define BITCAST16_HEIGHT 5
 #define BITCAST16_STRIDE (BITCAST16_WIDTH + 1)
-
+#define BITCAST16_MAX_DESCENDER 1
+#define BITCAST16_BASELINE_OFFSET (BITCAST16_MAX_DESCENDER + 1)
+#define BITCAST16_ROW_ADVANCE (BITCAST16_HEIGHT + BITCAST16_BASELINE_OFFSET)
 // all chars up to 32 are non-printable
 // space is at 32, but just space - can be special cased
 // ... but is the code to do this more expensive than just adding space?
@@ -34,21 +35,20 @@ bitcast16_glyph bitcast16_Glyphs[95] = {
 #endif
 
 void
-bitcast16_Char(unsigned int *Buffer, int RowStride, int Dir, char c, unsigned int Value, int xoffset, int yoffset, unsigned int PixelW, unsigned int PixelH)
+bitcast16_Char(unsigned int *Buffer, int RowStride, int DrawDir, char c, unsigned int Value, int xoffset, int yoffset, unsigned int PixelW, unsigned int PixelH)
 {
+	c = bitcast_IndexFromASCII(c);
 	bitcast16_glyph Glyph = bitcast16_Glyphs[c];
-	yoffset += (Glyph >> 15 & 1) * Dir * PixelH;
-	unsigned int *Row = Buffer + yoffset * Dir * RowStride + xoffset;
+	yoffset += (Glyph >> 15 & 1) * DrawDir * PixelH;
+	unsigned int *Row = Buffer + yoffset * DrawDir * RowStride + xoffset;
 	for(unsigned int y = 0; y < BITCAST16_HEIGHT; ++y)
 		for(unsigned int pxY = PixelH; pxY--; Row += RowStride)
 			for(unsigned int x = 0, *Pixel = Row; x < BITCAST16_WIDTH; ++x)
 			{
 				unsigned int Shift = y * BITCAST16_WIDTH + x;
 				unsigned int PixelDrawn = (Glyph >> Shift) & 1;
-				if(PixelDrawn)
-					for(unsigned int pxX = PixelW;
-						pxX--;
-						*Pixel++ = !PixelDrawn * *Pixel + PixelDrawn * Value); // 0: original val, 1: new val
+				if(PixelDrawn) for(unsigned int pxX = PixelW, pxVal = *Pixel; pxX--; pxVal = *Pixel)
+				{ *Pixel++ = !PixelDrawn * pxVal + PixelDrawn * Value; } /* 0: original val, 1: new val */
 				else { Pixel += PixelW; }
 			}
 }
@@ -56,18 +56,18 @@ bitcast16_Char(unsigned int *Buffer, int RowStride, int Dir, char c, unsigned in
 void
 bitcast16_String(unsigned int *Buffer, int RowStride, char *String, int StartX, int StartY, int Scale, unsigned int Col)
 {
-	int Dir = RowStride < 0 ? -1 : 1;
+	int DrawDir = RowStride < 0 ? -1 : 1;
 	for(int x = StartX, y = StartY; *String; ++String)
 	{
 		char c = *String;
 		switch(c)
 		{
-			default: bitcast16_Char(Buffer, RowStride, Dir, bitcast_IndexFromASCII(c), Col, x, y, Scale, Scale); // fallthrough
-			case  ' ': x +=       Scale * BITCAST16_STRIDE; break; // space: no need to touch pixels
-			case '\t': x +=   4 * Scale * BITCAST16_STRIDE; break; // tab: add 4 spaces
-			case '\b': x -=       Scale * BITCAST16_STRIDE; break; // non-destructive backspace
-			case '\n': y += Dir * Scale * (BITCAST16_HEIGHT + BITCAST16_BASELINE_OFFSET + 1);                    // fallthrough
-			case '\r': x = StartX;                             break;
+			default: bitcast16_Char(Buffer, RowStride, DrawDir, c, Col, x, y, Scale, Scale); // fallthrough
+			case  ' ': x +=           Scale * BITCAST16_STRIDE; break; // space: no need to touch pixels
+			case '\t': x +=       4 * Scale * BITCAST16_STRIDE; break; // tab: add 4 spaces
+			case '\b': x -=           Scale * BITCAST16_STRIDE; break; // non-destructive backspace
+			case '\n': y += DrawDir * Scale * BITCAST16_ROW_ADVANCE;   // fallthrough
+			case '\r': x = StartX;                              break;
 		}
 	}
 }
