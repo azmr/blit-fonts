@@ -11,6 +11,7 @@ I see them being useful for quickly getting up debug text on a PC without having
 	- [Functions](#functions)
 	- [Constants](#constants)
 	- [Types](#types)
+	- [Compile-time options](#compile-time-options)
 - [How it works](#how-it-works)
 - [Recommended Libraries](#recommended-libraries)
 
@@ -25,32 +26,36 @@ _Replace the prefix if using a different font._
 
 ### Functions
 ``` c
-/* Draw strings into a uint-based pixel buffer. Overwrites any pixels drawn to (no transparency). */
-blit16_String(unsigned int *Buffer, int RowStride, char *String, int StartX, int StartY, int Scale, unsigned int Col)
-/* Buffer         - the array of pixels that you're drawing into.
- * Rowstride      - the number of pixels you have to traverse in the buffer to move
- *                  down one row. Negate the value if your buffer's y is 0 at the bottom.
- * String         - the text you want to draw on the screen.
- * StartX, StartY - the x and y coordinates on the buffer for the top of the character.
- * Scale          - simple integer scaling of glyph 'pixels' to buffer pixels.
- *                  e.g. a value of 3 would draw a 3x3 square for each 'pixel'.
- * Col            - colour value, assuming it can be represented as a uint.
- *                  Could be AARRGGBB, RRGGBBAA or any other formation.
+/* Draw strings into a uint-based pixel buffer. Overwrites any pixels drawn to (no alpha). */
+/* returns number of lines printed */
+int blit16_StringNExplicit(unsigned int *Buffer, int BufWidth, int BufHeight, int Scale,
+                           unsigned int Value, int StartX, int StartY, char *String, int StrLen);
+/* Buffer              - the array of pixels that you're drawing into.
+ * BufWidth, BufHeight - width and height of the buffer.
+ * Scale               - simple integer scaling of glyph 'pixels' to buffer pixels.
+ *                       e.g. a value of 3 would draw a 3x3 square for each 'pixel'.
+ * Value               - colour value, assuming it can be represented as a uint.
+ *                       Could be AARRGGBB, RRGGBBAA or any other formation.
+ * StartX, StartY      - x and y in the buffer for the top-left of the glyph's bounding box.
+ * String              - the text you want to draw on the screen.
+ * StrLen              - maximum length of string from pointer if '\0' is not hit first.
+ *                       If negative, will just run to the first null terminator.
  */
 
-/* Draw characters into a uint-based pixel buffer. Overwrites any pixels drawn to (no transparency). */
-blit16_Char(unsigned int *Buffer, int RowStride, int DrawDir, char c, unsigned int Value, int xoffset, int yoffset, unsigned int PixelW, unsigned int PixelH)
-/* Buffer           - the array of pixels that you're drawing into.
- * Rowstride        - the number of pixels you have to traverse in the buffer to move
- *                    down one row. Negate the value if your buffer's y is 0 at the bottom.
- * DrawDir          - 1 if buffer draws top-down, -1 if drawing bottom-up.
- * String           - the text you want to draw on the screen.
- * xoffset, yoffset - the x and y coordinates on the buffer for the top of the character.
- * PixelW, PixelH   - simple integer scaling of glyph 'pixels' to buffer pixels (in each dimension).
- *                    e.g. value of 3 & 4 would draw a 3x4 rectangle for each 'pixel'.
- * Value            - colour value, assuming it can be represented as a uint.
- *                    Could be AARRGGBB, RRGGBBAA or any other formation.
- */
+/* The same as above, but no need to specify negative StrLen */
+int blit16_StringExplicit(unsigned int *Buffer, int BufWidth, int BufHeight, int Scale,
+                          unsigned int Value, int StartX, int StartY, char *String)
+
+/* Use a blit_props struct to keep the infrequently changing elements together */
+int blit16_StringNProps(blit_props Props, int StartX, int StartY, char *String, int StrLen)
+int blit16_StringProps(blit_props Props, int StartX, int StartY, char *String)
+
+/* Use the default properties in the font */
+int blit16_StringN(int StartX, int StartY, char *String, int StrLen)
+int blit16_String(int StartX, int StartY, char *String)
+
+/* Scale the font metrics pointed to in the font */
+void blit16_Scale(blit16_font *Font, int Scale)
 
 /* Convert between ASCII code (or character literals) and the associated glyph index. */
 blit_IndexFromASCII(unsigned int ascii);
@@ -59,18 +64,50 @@ blit_ASCIIFromIndex(unsigned int index);
 
 ### Constants
 ``` c
-                          /* (all dimensions in glyph pixels)                    */
-BLIT16_WIDTH           /* Width of glyphs                                     */
-BLIT16_HEIGHT          /* Height of glyphs                                    */
-BLIT16_STRIDE          /* Distance between start of 1 character and the next  */
-BLIT16_MAX_DESCENDER   /* Maximum distance of descenders below baseline       */
-BLIT16_BASELINE_OFFSET /* Distance between baseline and top of next character */
-BLIT16_ROW_ADVANCE     /* Distance between baseline of 1 row and the next     */
+                       /* (all dimensions in glyph pixels)                    */
+blit16_WIDTH           /* Width of glyphs                                     */
+blit16_HEIGHT          /* Height of glyphs                                    */
+blit16_ADVANCE         /* Distance between start of 1 character and the next  */
+blit16_DESCENDER       /* Maximum distance of descenders below baseline       */
+blit16_BASELINE_OFFSET /* Distance between baseline and top of next character */
+blit16_ROW_ADVANCE     /* Distance between baseline of 1 row and the next     */
 ```
 
 ### Types
 ``` c
 typedef unsigned short blit16_glyph;
+
+/* Keep infrequently changing properties together, see above for explanations */
+typedef struct blit_props
+{
+	unsigned int *Buffer;
+	unsigned int  Value;
+	         int  Scale;
+	         int  BufWidth;
+	         int  BufHeight;
+} blit_props;
+
+/* This is just a convenience wrapper around the array:
+ * - simplify calls even more
+ * - you can reference the constants in a debugger
+ * - can keep scaled versions of the constants above
+ */
+typedef struct blit16_font
+{
+	const blit16_glyph Glyphs[blit_NUM_GLYPHS];
+	const unsigned int Width;
+	const unsigned int Height;
+	const unsigned int Descender;
+	const unsigned int Advance;
+	const unsigned int RowAdvance;
+	        blit_props Props;
+} blit16_font;
+```
+
+### Compile-time options
+```
+/* removes blit16_font, blit16_Scale, and replaces Blit16 with blit16_Glyphs */
+#define blit16_ARRAY_ONLY
 ```
 
 ## How it works 
@@ -95,10 +132,11 @@ char Glyph_One[] =
 ``` c
  111010010011010
 ```
-3) This can then be represented as a number (in hexadecimal)
+3) This can then be represented as a number (in hexadecimal).
 ``` c
 0x749a
 ```
+(One happy coincidence of this format is that space is represented by the number 0)
 4) Collect a lot of these into an array, sorted in the ASCII code order (omitting the non-printable characters, starting with space at ASCII code 32).
 ``` c
 typedef unsigned short blit16_glyph;
