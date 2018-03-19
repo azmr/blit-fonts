@@ -1,5 +1,5 @@
-# Blit fonts
- _Small, fast, and simple bitmap fonts in single-file C headers_
+# Blit
+_A family of small, fast, and simple bitmap fonts in single-file C headers_
 
 These are not intended as a replacement for fancy user fonts.
 I see them being useful for quickly getting up debug text on a PC without having to link an external font file, or for embedded developers with limited memory.
@@ -108,6 +108,8 @@ typedef struct blit16_font
 ```
 /* removes blit16_font, blit16_Scale, and replaces Blit16 with blit16_Glyphs */
 #define blit16_ARRAY_ONLY
+/* removes all string functions except blit16_StringNExplicit */
+#ifndef blit16_NO_HELPERS
 ```
 
 ## How it works 
@@ -137,6 +139,7 @@ char Glyph_One[] =
 0x749a
 ```
 (One happy coincidence of this format is that space is represented by the number 0)
+
 4) Collect a lot of these into an array, sorted in the ASCII code order (omitting the non-printable characters, starting with space at ASCII code 32).
 ``` c
 typedef unsigned short blit16_glyph;

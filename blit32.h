@@ -126,6 +126,7 @@ int blit32_StringNExplicit(unsigned int *Buffer, int BufWidth, int BufHeight, in
 	return LinesPrinted;
 }
 
+#ifndef blit32_NO_HELPERS
 inline int blit32_StringExplicit(unsigned int *Buffer, int BufWidth, int BufHeight, int Scale, unsigned int Value, int StartX, int StartY, char *String)
 { return blit32_StringNExplicit(Buffer, BufWidth, BufHeight, Scale, Value, StartX, StartY, String, -1); }
 
@@ -140,6 +141,7 @@ inline int blit32_StringN(int StartX, int StartY, char *String, int StrLen)
 
 inline int blit32_String(int StartX, int StartY, char *String)
 { return blit32_StringNExplicit(Blit32.Props.Buffer, Blit32.Props.BufWidth, Blit32.Props.BufHeight, Blit32.Props.Scale, Blit32.Props.Value, StartX, StartY, String, -1); }
+#endif//blit32_NO_HELPERS
 
 #define blit32_H
 #endif//blit32_H

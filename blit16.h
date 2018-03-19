@@ -113,13 +113,14 @@ int blit16_StringNExplicit(unsigned int *Buffer, int BufWidth, int BufHeight, in
 			case '\t': x +=       4 * Scale * blit16_ADVANCE; break; // tab: add 4 spaces
 			case '\b': x -=           Scale * blit16_ADVANCE; break; // non-destructive backspace
 			case '\n': y += DrawDir * Scale * blit16_ROW_ADVANCE;    // newline
-			           ++LinesPrinted; // fallthrough
-			case '\r': x = StartX;                         break;    // carriage return
+			           ++LinesPrinted;                     // fallthrough
+			case '\r': x  = StartX;                           break; // carriage return
 		}
 	}
 	return LinesPrinted;
 }
 
+#ifndef blit16_NO_HELPERS
 inline int blit16_StringExplicit(unsigned int *Buffer, int BufWidth, int BufHeight, int Scale, unsigned int Value, int StartX, int StartY, char *String)
 { return blit16_StringNExplicit(Buffer, BufWidth, BufHeight, Scale, Value, StartX, StartY, String, -1); }
 
@@ -134,6 +135,7 @@ inline int blit16_StringN(int StartX, int StartY, char *String, int StrLen)
 
 inline int blit16_String(int StartX, int StartY, char *String)
 { return blit16_StringNExplicit(Blit16.Props.Buffer, Blit16.Props.BufWidth, Blit16.Props.BufHeight, Blit16.Props.Scale, Blit16.Props.Value, StartX, StartY, String, -1); }
+#endif//blit16_NO_HELPERS
 
 #define blit16_H
 #endif//blit16_H
