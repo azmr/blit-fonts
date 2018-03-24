@@ -11,6 +11,9 @@
 typedef unsigned long blit32_glyph;
 
 #ifndef blit_H
+#ifndef blit_pixel
+#define blit_pixel unsigned int
+#endif/*blit_pixel*/
 #ifndef blit_NO_INLINE
 #define blit_inline inline
 #else /*blit_NO_INLINE*/
@@ -21,11 +24,11 @@ typedef unsigned long blit32_glyph;
 #define blit_ASCIIFromIndex(index) (index + ' ')
 typedef struct blit_props
 {
-	unsigned int *Buffer;
-	unsigned int  Value;
-	         int  Scale;
-	         int  BufWidth;
-	         int  BufHeight;
+	blit_pixel *Buffer;
+	blit_pixel  Value;
+	       int  Scale;
+	       int  BufWidth;
+	       int  BufHeight;
 	enum {blit_Clip, blit_Wrap} Wrap;
 } blit_props;
 #define blit_H
@@ -86,7 +89,7 @@ blit32_glyph blit32_Glyphs[blit_NUM_GLYPHS] =
 };
 
 /* StartX/Y refers to the top left corner of the glyph's bounding box */
-int blit32_TextNExplicit(unsigned int *Buffer, unsigned int Value, int Scale, int BufWidth, int BufHeight, int Wrap, int StartX, int StartY, char *String, int StrLen)
+int blit32_TextNExplicit(blit_pixel *Buffer, blit_pixel Value, int Scale, int BufWidth, int BufHeight, int Wrap, int StartX, int StartY, char *String, int StrLen)
 {
 	int IsNegative = BufWidth < 0;
 	int DrawDir = IsNegative ? -1 : 1;
@@ -118,19 +121,17 @@ int blit32_TextNExplicit(unsigned int *Buffer, unsigned int Value, int Scale, in
 			{
 				default:                                                 /* normal character */
 				{
-					unsigned int glY, pxY, glX, *Pixel;
+					unsigned int glY, pxY, glX, pxX;
 					blit32_glyph Glyph = blit32_Glyphs[blit_IndexFromASCII(c)];
 					unsigned int OffsetY = y + blit32_EXTRA_BITS(Glyph) * Scale * DrawDir;
-					unsigned int *Row = Buffer + OffsetY * AbsBufWidth + x;
+					blit_pixel *Pixel, *Row = Buffer + OffsetY * AbsBufWidth + x;
 					for(glY = 0; glY < blit32_HEIGHT; ++glY)
 						for(pxY = Scale; pxY--; Row += BufWidth)
 							for(glX = 0, Pixel = Row; glX < blit32_WIDTH; ++glX)
 							{
 								unsigned int Shift = glY * blit32_WIDTH + glX;
 								unsigned int PixelDrawn = (Glyph >> Shift) & 1;
-								unsigned int pxX, pxVal;
-								if(PixelDrawn) for(pxX = Scale, pxVal = *Pixel; pxX--; pxVal = *Pixel)
-								{ *Pixel++ = !PixelDrawn * pxVal + PixelDrawn * Value; } /* 0: original, 1: new */
+								if(PixelDrawn) for(pxX = Scale; pxX--; *Pixel++ = Value);
 								else { Pixel += Scale; }
 							}
 				} /* fallthrough */
@@ -148,7 +149,7 @@ int blit32_TextNExplicit(unsigned int *Buffer, unsigned int Value, int Scale, in
 #ifndef blit32_NO_HELPERS
 #ifndef blit32_MACRO_INLINE
 
-blit_inline int blit32_TextExplicit(unsigned int *Buffer, unsigned int Value, int Scale, int BufWidth, int BufHeight, int Wrap, int StartX, int StartY, char *String)
+blit_inline int blit32_TextExplicit(blit_pixel *Buffer, blit_pixel Value, int Scale, int BufWidth, int BufHeight, int Wrap, int StartX, int StartY, char *String)
 { return blit32_TextNExplicit(Buffer, Value, Scale, BufWidth, BufHeight, Wrap, StartX, StartY, String, -1); }
 blit_inline int blit32_TextNProps(blit_props Props, int StartX, int StartY, char *String, int StrLen)
 { return blit32_TextNExplicit(Props.Buffer, Props.Value, Props.Scale, Props.BufWidth, Props.BufHeight, Props.Wrap, StartX, StartY, String, StrLen); }

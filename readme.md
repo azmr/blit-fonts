@@ -26,21 +26,21 @@ _Replace the prefix if using a different font._
 
 ### Functions
 ``` c
-/* Draw strings into a uint-based pixel buffer. Overwrites any pixels drawn to (no alpha). */
+/* Draw strings into a pixel buffer. Overwrites any pixels drawn to (no alpha). */
 /* returns number of lines printed */
 int blit16_TextNExplicit(unsigned int *Buffer, unsigned int Value, int Scale,
                          int BufWidth, int BufHeight, int Wrap,
                          int StartX, int StartY, char *String, int StrLen)
                          unsigned int Value, int StartX, int StartY, char *String, int StrLen);
 /* Buffer              - the array of pixels that you're drawing into.
- * Value               - colour value, assuming it can be represented as a uint.
- *                       Could be AARRGGBB, RRGGBBAA or any other formation.
+ * Value               - text colour value, uint by default, but can be changed as shown below.
+ *                       Should work for most representations.
  * Scale               - simple integer scaling of glyph 'pixels' to buffer pixels.
  *                       e.g. a value of 3 would draw a 3x3 square for each 'pixel'.
  * BufWidth, BufHeight - width and height of the buffer being drawn into.
  * Wrap                - controls what happens when the text reaches the edge of the buffer.
-                         blit_Clip (0) stops printing, blit_Wrap continues on the next line.
-                         Wrapping is only done per character, not per word.
+ *                       blit_Clip (0) stops printing, blit_Wrap continues on the next line.
+ *                       Wrapping is only done per character, not per word.
  * StartX, StartY      - x and y in the buffer for the top-left of the glyph's bounding box.
  * String              - the text you want to draw on the screen.
  * StrLen              - maximum length of string from pointer if '\0' is not hit first.
@@ -86,8 +86,8 @@ typedef unsigned short blit16_glyph;
 /* Keep infrequently changing properties together, see above for explanations */
 typedef struct blit_props
 {
-	unsigned int *Buffer;
-	unsigned int  Value;
+	unsigned int *Buffer; /* changeable to a custom pixel type */
+	unsigned int  Value;  /* ... see the compile-time options  */
 	         int  Scale;
 	         int  BufWidth;
 	         int  BufHeight;
@@ -113,6 +113,9 @@ typedef struct blit16_font
 
 ### Compile-time options
 ```
+/* determines the pixel type that blit draws (defaults to unsigned int) */
+#define blit_pixel your_pixel_type_here
+
 /* removes the inline qualifier from all functions */
 #define blit_NO_INLINE
 
@@ -183,3 +186,4 @@ Depending on the glyph type and aspect ratio, there may be no space for such a f
 - [sweet](https://github.com/azmr/sweet) (my single-header C test suite)
 - [live_edit](https://github.com/azmr/live_edit) (my single-header C library-loading/tweaking/debugging/profiling tools)
 - [STB libraries](https://github.com/nothings/stb) (lots of excellent single-header libraries, including `stb_truetype.h` for when you want proper fonts)
+- [tigr](https://bitbucket.org/rmitton/tigr) (multiplatform 'Tiny Graphics' header. Easy to set up. Plays nicely with blit fonts.)
