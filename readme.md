@@ -28,14 +28,19 @@ _Replace the prefix if using a different font._
 ``` c
 /* Draw strings into a uint-based pixel buffer. Overwrites any pixels drawn to (no alpha). */
 /* returns number of lines printed */
-int blit16_StringNExplicit(unsigned int *Buffer, int BufWidth, int BufHeight, int Scale,
-                           unsigned int Value, int StartX, int StartY, char *String, int StrLen);
+int blit16_TextNExplicit(unsigned int *Buffer, unsigned int Value, int Scale,
+                         int BufWidth, int BufHeight, int Wrap,
+                         int StartX, int StartY, char *String, int StrLen)
+                         unsigned int Value, int StartX, int StartY, char *String, int StrLen);
 /* Buffer              - the array of pixels that you're drawing into.
- * BufWidth, BufHeight - width and height of the buffer.
- * Scale               - simple integer scaling of glyph 'pixels' to buffer pixels.
- *                       e.g. a value of 3 would draw a 3x3 square for each 'pixel'.
  * Value               - colour value, assuming it can be represented as a uint.
  *                       Could be AARRGGBB, RRGGBBAA or any other formation.
+ * Scale               - simple integer scaling of glyph 'pixels' to buffer pixels.
+ *                       e.g. a value of 3 would draw a 3x3 square for each 'pixel'.
+ * BufWidth, BufHeight - width and height of the buffer being drawn into.
+ * Wrap                - controls what happens when the text reaches the edge of the buffer.
+                         blit_Clip (0) stops printing, blit_Wrap continues on the next line.
+                         Wrapping is only done per character, not per word.
  * StartX, StartY      - x and y in the buffer for the top-left of the glyph's bounding box.
  * String              - the text you want to draw on the screen.
  * StrLen              - maximum length of string from pointer if '\0' is not hit first.
@@ -43,16 +48,17 @@ int blit16_StringNExplicit(unsigned int *Buffer, int BufWidth, int BufHeight, in
  */
 
 /* The same as above, but no need to specify negative StrLen */
-int blit16_StringExplicit(unsigned int *Buffer, int BufWidth, int BufHeight, int Scale,
-                          unsigned int Value, int StartX, int StartY, char *String)
+blit16_TextExplicit(unsigned int *Buffer, unsigned int Value, int Scale,
+                    int BufWidth, int BufHeight, int Wrap,
+                    int StartX, int StartY, char *String)
 
 /* Use a blit_props struct to keep the infrequently changing elements together */
-int blit16_StringNProps(blit_props Props, int StartX, int StartY, char *String, int StrLen)
-int blit16_StringProps(blit_props Props, int StartX, int StartY, char *String)
+blit16_TextNProps(blit_props Props, int StartX, int StartY, char *String, int StrLen)
+blit16_TextProps(blit_props Props, int StartX, int StartY, char *String)
 
-/* Use the default properties in the font */
-int blit16_StringN(int StartX, int StartY, char *String, int StrLen)
-int blit16_String(int StartX, int StartY, char *String)
+/* Use the properties in the global font */
+blit16_TextN(int StartX, int StartY, char *String, int StrLen)
+blit16_Text(int StartX, int StartY, char *String)
 
 /* Scale the font metrics pointed to in the font */
 void blit16_Scale(blit16_font *Font, int Scale)
@@ -66,7 +72,7 @@ blit_ASCIIFromIndex(unsigned int index);
 ``` c
                        /* (all dimensions in glyph pixels)                    */
 blit16_WIDTH           /* Width of glyphs                                     */
-blit16_HEIGHT          /* Height of glyphs                                    */
+blit16_HEIGHT          /* Height of glyphs (excluding descender)              */
 blit16_ADVANCE         /* Distance between start of 1 character and the next  */
 blit16_DESCENDER       /* Maximum distance of descenders below baseline       */
 blit16_BASELINE_OFFSET /* Distance between baseline and top of next character */
@@ -85,6 +91,7 @@ typedef struct blit_props
 	         int  Scale;
 	         int  BufWidth;
 	         int  BufHeight;
+	enum {blit_Clip, blit_Wrap} Wrap;
 } blit_props;
 
 /* This is just a convenience wrapper around the array:
@@ -106,10 +113,17 @@ typedef struct blit16_font
 
 ### Compile-time options
 ```
+/* removes the inline qualifier from all functions */
+#define blit_NO_INLINE
+
+/* replaces all inline functions with macro equivalents */
+#define blit16_MACRO_INLINE
+
 /* removes blit16_font, blit16_Scale, and replaces Blit16 with blit16_Glyphs */
 #define blit16_ARRAY_ONLY
+
 /* removes all string functions except blit16_StringNExplicit */
-#ifndef blit16_NO_HELPERS
+#define blit16_NO_HELPERS
 ```
 
 ## How it works 

@@ -1,18 +1,4 @@
 #ifndef blit16_H
-#ifndef blit_H
-#define blit_NUM_GLYPHS 95
-#define blit_IndexFromASCII(ascii) (ascii - 32)
-#define blit_ASCIIFromIndex(index) (index + 32)
-typedef struct blit_props
-{
-	unsigned int *Buffer;
-	unsigned int  Value;
-	         int  Scale;
-	         int  BufWidth;
-	         int  BufHeight;
-} blit_props;
-#define blit_H
-#endif//blit_H
 
 #define blit16_WIDTH 3
 #define blit16_HEIGHT 5
@@ -23,6 +9,27 @@ typedef struct blit_props
 #define blit16_EXTRA_BITS(x) (((x) >> 15) & 1)
 
 typedef unsigned short blit16_glyph;
+
+#ifndef blit_H
+#ifndef blit_NO_INLINE
+#define blit_inline inline
+#else /*blit_NO_INLINE*/
+#define blit_inline
+#endif/*blit_NO_INLINE*/
+#define blit_NUM_GLYPHS 95
+#define blit_IndexFromASCII(ascii) (ascii - ' ')
+#define blit_ASCIIFromIndex(index) (index + ' ')
+typedef struct blit_props
+{
+	unsigned int *Buffer;
+	unsigned int  Value;
+	         int  Scale;
+	         int  BufWidth;
+	         int  BufHeight;
+	enum {blit_Clip, blit_Wrap} Wrap;
+} blit_props;
+#define blit_H
+#endif/*blit_H*/
 
 #ifndef blit16_ARRAY_ONLY
 #define blit16_Glyphs Blit16.Glyphs
@@ -37,22 +44,25 @@ typedef struct blit16_font
 	        blit_props Props;
 } blit16_font;
 
-inline void blit16_Scale(blit16_font *Font, int Scale)
-{
-	                  Font->Props.Scale = Scale;
-	*(unsigned int *)&Font->Width       = blit16_WIDTH       * Scale;
-	*(unsigned int *)&Font->Height      = blit16_HEIGHT      * Scale;
-	*(unsigned int *)&Font->Descender   = blit16_DESCENDER   * Scale;
-	*(unsigned int *)&Font->Advance     = blit16_ADVANCE     * Scale;
-	*(unsigned int *)&Font->RowAdvance  = blit16_ROW_ADVANCE * Scale;
-}
+#define blit16_SCALE(Font, scale) Font->Props.Scale = scale;         \
+	*(unsigned int *)&Font->Width      = blit16_WIDTH       * scale; \
+	*(unsigned int *)&Font->Height     = blit16_HEIGHT      * scale; \
+	*(unsigned int *)&Font->Descender  = blit16_DESCENDER   * scale; \
+	*(unsigned int *)&Font->Advance    = blit16_ADVANCE     * scale; \
+	*(unsigned int *)&Font->RowAdvance = blit16_ROW_ADVANCE * scale
+#ifndef blit16_MACRO_INLINE
+blit_inline void blit16_Scale(blit16_font *Font, int Scale) { blit16_SCALE(Font, Scale); }
+#else /*blit16_MACRO_INLINE*/
+#define blit16_Scale(Font, scale) \
+do { int blit16_TempScale = (scale); blit16_SCALE((Font), blit16_TempScale); } while (0)
+#endif/*blit16_MACRO_INLINE*/
 
 blit16_font Blit16 = {
-#else//blit16_ARRAY_ONLY
+#else/*blit16_ARRAY_ONLY*/
 blit16_glyph blit16_Glyphs[blit_NUM_GLYPHS] =
-#endif//blit16_ARRAY_ONLY
+#endif/*blit16_ARRAY_ONLY*/
 	{
-		// all chars up to 32 are non-printable
+		/* all chars up to 32 are non-printable */
 		0x0000,0x2092,0x002d,0x5f7d,0x279e,0x52a5,0x7ad6,0x0012,
 		0x4494,0x1491,0x017a,0x05d0,0x1400,0x01c0,0x0400,0x12a4,
 		0x2b6a,0x749a,0x752a,0x38a3,0x4f4a,0x38cf,0x3bce,0x12a7,
@@ -72,70 +82,98 @@ blit16_glyph blit16_Glyphs[blit_NUM_GLYPHS] =
 	blit16_DESCENDER,
 	blit16_ADVANCE,
 	blit16_ROW_ADVANCE,
-#endif//blit16_ARRAY_ONLY
+#endif/*blit16_ARRAY_ONLY*/
 };
 
-// StartX/Y refers to the top left corner of the glyph's bounding box
-int blit16_StringNExplicit(unsigned int *Buffer, int BufWidth, int BufHeight, int Scale, unsigned int Value, int StartX, int StartY, char *String, int StrLen)
+/* StartX/Y refers to the top left corner of the glyph's bounding box */
+int blit16_TextNExplicit(unsigned int *Buffer, unsigned int Value, int Scale, int BufWidth, int BufHeight, int Wrap, int StartX, int StartY, char *String, int StrLen)
 {
 	int IsNegative = BufWidth < 0;
 	int DrawDir = IsNegative ? -1 : 1;
 	int AbsBufWidth = DrawDir * BufWidth;
-	StrLen = StrLen >= 0 ? StrLen : 0x7FFFFFFF; // if negative, wrap to max int
 	unsigned int LinesPrinted = 1;
-	for(int i = 0, x = StartX, y = StartY; *String && i < StrLen; ++String, ++i)
+	int i, x, y;
+	StrLen = StrLen >= 0 ? StrLen : 0x7FFFFFFF; /* if negative, wrap to max int */
+	for(i = 0, x = StartX, y = StartY; String[i] && i < StrLen; ++i)
 	{
-		char c = *String;
-		int BufUnderflow = y < 0;
-		int BufOverflow  = BufHeight && y + (blit16_HEIGHT + blit16_DESCENDER) * Scale >= BufHeight;
-		if(BufOverflow || (IsNegative && BufUnderflow)) { break; }
-		if(x >= 0 && x + blit16_WIDTH * Scale < BufWidth && !(BufUnderflow || (IsNegative && BufOverflow)))
-		switch(c)
+		char c = String[i];
+		int EndY = y + (blit16_HEIGHT + blit16_DESCENDER) * Scale * DrawDir;
+		int BufUnderflow  = EndY < 0 || y < 0;
+		int BufOverflow   = BufHeight && (EndY >= BufHeight || y >= BufHeight);
+		int BufYMinExceed = BufUnderflow || (IsNegative && BufOverflow);
+		int BufYMaxExceed = BufOverflow  || (IsNegative && BufUnderflow);
+		int BufXMinExceed = x < 0;
+		int EndX = c == '\n' || c == '\r' ? StartX            :
+		               c == '\t' ? x + 4 * Scale * blit16_ADVANCE :
+		               c == '\b' ?       x - Scale * blit16_WIDTH :
+		               /* normal char */ x + Scale * blit16_WIDTH;
+		int BufXMaxExceed = EndX > AbsBufWidth;
+
+		if(BufYMaxExceed) { break; } /* no point adding extra undrawable lines */
+		else if((! BufYMinExceed && (! BufXMaxExceed || Wrap)) || c == '\n')
 		{
-			default:                                                 // normal character
+			if(BufXMaxExceed && c != '\n') { c = '\n'; --i; } /* new line and redo on-screen checks */
+			else if(BufXMinExceed)         { c = ' '; }       /* skip past character without drawing */
+			switch(c)
+			{
+				default:                                                 /* normal character */
 				{
-					c = blit_IndexFromASCII(c);
-					blit16_glyph Glyph = blit16_Glyphs[c];
-					unsigned int yoffset = y + blit16_EXTRA_BITS(Glyph) * Scale * DrawDir;
-					unsigned int *Row = Buffer + yoffset * AbsBufWidth + x;
-					for(unsigned int glY = 0; glY < blit16_HEIGHT; ++glY)
-					for(unsigned int pxY = Scale; pxY--; Row += BufWidth)
-					for(unsigned int glX = 0, *Pixel = Row; glX < blit16_WIDTH; ++glX)
-					{
-						unsigned int Shift = glY * blit16_WIDTH + glX;
-						unsigned int PixelDrawn = (Glyph >> Shift) & 1;
-						if(PixelDrawn) for(unsigned int pxX = Scale, pxVal = *Pixel; pxX--; pxVal = *Pixel)
-						{ *Pixel++ = !PixelDrawn * pxVal + PixelDrawn * Value; } /* 0: original val, 1: new val */
-						else { Pixel += Scale; }
-					}
-				} // fallthrough
-			case  ' ': x +=           Scale * blit16_ADVANCE; break; // space: no need to touch pixels
-			case '\t': x +=       4 * Scale * blit16_ADVANCE; break; // tab: add 4 spaces
-			case '\b': x -=           Scale * blit16_ADVANCE; break; // non-destructive backspace
-			case '\n': y += DrawDir * Scale * blit16_ROW_ADVANCE;    // newline
-			           ++LinesPrinted;                     // fallthrough
-			case '\r': x  = StartX;                           break; // carriage return
+					unsigned int glY, pxY, glX, *Pixel;
+					blit16_glyph Glyph = blit16_Glyphs[blit_IndexFromASCII(c)];
+					unsigned int OffsetY = y + blit16_EXTRA_BITS(Glyph) * Scale * DrawDir;
+					unsigned int *Row = Buffer + OffsetY * AbsBufWidth + x;
+					for(glY = 0; glY < blit16_HEIGHT; ++glY)
+						for(pxY = Scale; pxY--; Row += BufWidth)
+							for(glX = 0, Pixel = Row; glX < blit16_WIDTH; ++glX)
+							{
+								unsigned int Shift = glY * blit16_WIDTH + glX;
+								unsigned int PixelDrawn = (Glyph >> Shift) & 1;
+								unsigned int pxX, pxVal;
+								if(PixelDrawn) for(pxX = Scale, pxVal = *Pixel; pxX--; pxVal = *Pixel)
+								{ *Pixel++ = !PixelDrawn * pxVal + PixelDrawn * Value; } /* 0: original, 1: new */
+								else { Pixel += Scale; }
+							}
+				} /* fallthrough */
+				case  ' ': x +=           Scale * blit16_ADVANCE; break; /* space: no need to touch pixels */
+				case '\b': x -=           Scale * blit16_ADVANCE; break; /* non-destructive backspace */
+				case '\t': x +=       4 * Scale * blit16_ADVANCE; break; /* tab: add 4 spaces */
+				case '\n': y += DrawDir * Scale * blit16_ROW_ADVANCE; ++LinesPrinted; /* new line; fallthrough */
+				case '\r': x  = StartX;                        break; /* carriage return */
+			}
 		}
 	}
 	return LinesPrinted;
 }
 
 #ifndef blit16_NO_HELPERS
-inline int blit16_StringExplicit(unsigned int *Buffer, int BufWidth, int BufHeight, int Scale, unsigned int Value, int StartX, int StartY, char *String)
-{ return blit16_StringNExplicit(Buffer, BufWidth, BufHeight, Scale, Value, StartX, StartY, String, -1); }
+#ifndef blit16_MACRO_INLINE
 
-inline int blit16_StringNProps(blit_props Props, int StartX, int StartY, char *String, int StrLen)
-{ return blit16_StringNExplicit(Props.Buffer, Props.BufWidth, Props.BufHeight, Props.Scale, Props.Value, StartX, StartY, String, StrLen); }
+blit_inline int blit16_TextExplicit(unsigned int *Buffer, unsigned int Value, int Scale, int BufWidth, int BufHeight, int Wrap, int StartX, int StartY, char *String)
+{ return blit16_TextNExplicit(Buffer, Value, Scale, BufWidth, BufHeight, Wrap, StartX, StartY, String, -1); }
+blit_inline int blit16_TextNProps(blit_props Props, int StartX, int StartY, char *String, int StrLen)
+{ return blit16_TextNExplicit(Props.Buffer, Props.Value, Props.Scale, Props.BufWidth, Props.BufHeight, Props.Wrap, StartX, StartY, String, StrLen); }
+blit_inline int blit16_TextProps(blit_props Props, int StartX, int StartY, char *String)
+{ return blit16_TextNExplicit(Props.Buffer, Props.Value, Props.Scale, Props.BufWidth, Props.BufHeight, Props.Wrap, StartX, StartY, String, -1); }
+blit_inline int blit16_TextN(int StartX, int StartY, char *String, int StrLen)
+{ return blit16_TextNExplicit(Blit16.Props.Buffer, Blit16.Props.Value, Blit16.Props.Scale, Blit16.Props.BufWidth, Blit16.Props.BufHeight, Blit16.Props.Wrap, StartX, StartY, String, StrLen); }
+blit_inline int blit16_Text(int StartX, int StartY, char *String)
+{ return blit16_TextNExplicit(Blit16.Props.Buffer, Blit16.Props.Value, Blit16.Props.Scale, Blit16.Props.BufWidth, Blit16.Props.BufHeight, Blit16.Props.Wrap, StartX, StartY, String, -1); }
 
-inline int blit16_StringProps(blit_props Props, int StartX, int StartY, char *String)
-{ return blit16_StringNExplicit(Props.Buffer, Props.BufWidth, Props.BufHeight, Props.Scale, Props.Value, StartX, StartY, String, -1); }
+#else/*blit16_NO_INLINE*/
 
-inline int blit16_StringN(int StartX, int StartY, char *String, int StrLen)
-{ return blit16_StringNExplicit(Blit16.Props.Buffer, Blit16.Props.BufWidth, Blit16.Props.BufHeight, Blit16.Props.Scale, Blit16.Props.Value, StartX, StartY, String, StrLen); }
+#define blit16_TextExplicit(Buffer, Value, Scale, BufWidth, BufHeight, Wrap, StartX, StartY, String) \
+	blit16_TextNExplicit(Buffer, Value, Scale, BufWidth, BufHeight, Wrap, StartX, StartY, String, -1)
+#define blit16_TextNProps(Props, StartX, StartY, String, StrLen) \
+	blit16_TextNExplicit((Props).Buffer, (Props).Value, (Props).Scale, (Props).BufWidth, (Props).BufHeight, (Props).Wrap, StartX, StartY, String, StrLen)
+#define blit16_TextProps(Props, StartX, StartY, String) \
+	blit16_TextNExplicit((Props).Buffer, (Props).Value, (Props).Scale, (Props).BufWidth, (Props).BufHeight, (Props).Wrap, StartX, StartY, String, -1)
+#define blit16_TextN(StartX, StartY, String, StrLen) \
+	blit16_TextNExplicit(Blit16.Props.Buffer, Blit16.Props.Value, Blit16.Props.Scale, Blit16.Props.BufWidth, Blit16.Props.BufHeight, Blit16.Props.Wrap, StartX, StartY, String, StrLen)
+#define blit16_Text(StartX, StartY, String) \
+	blit16_TextNExplicit(Blit16.Props.Buffer, Blit16.Props.Value, Blit16.Props.Scale, Blit16.Props.BufWidth, Blit16.Props.BufHeight, Blit16.Props.Wrap, StartX, StartY, String, -1)
 
-inline int blit16_String(int StartX, int StartY, char *String)
-{ return blit16_StringNExplicit(Blit16.Props.Buffer, Blit16.Props.BufWidth, Blit16.Props.BufHeight, Blit16.Props.Scale, Blit16.Props.Value, StartX, StartY, String, -1); }
-#endif//blit16_NO_HELPERS
+#endif/*blit16_NO_INLINE*/
+#endif/*blit16_NO_HELPERS*/
 
 #define blit16_H
-#endif//blit16_H
+#endif/*blit16_H*/
