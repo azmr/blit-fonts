@@ -68,7 +68,7 @@ blit16_glyph blit16_Glyphs[blit_NUM_GLYPHS] =
 	{
 		/* all chars up to 32 are non-printable */
 		0x0000,0x2092,0x002d,0x5f7d,0x279e,0x52a5,0x7ad6,0x0012,
-		0x4494,0x1491,0x017a,0x05d0,0x1400,0x01c0,0x0400,0x12a4,
+		0x4494,0x1491,0x0aba,0x05d0,0x1400,0x01c0,0x0400,0x12a4,
 		0x2b6a,0x749a,0x752a,0x38a3,0x4f4a,0x38cf,0x3bce,0x12a7,
 		0x3aae,0x49ae,0x0410,0x1410,0x4454,0x0e38,0x1511,0x10e3,
 		0x73ee,0x5f7a,0x3beb,0x624e,0x3b6b,0x73cf,0x13cf,0x6b4e,
@@ -90,7 +90,7 @@ blit16_glyph blit16_Glyphs[blit_NUM_GLYPHS] =
 };
 
 /* StartX/Y refers to the top left corner of the glyph's bounding box */
-int blit16_TextNExplicit(blit_pixel *Buffer, blit_pixel Value, int Scale, int BufWidth, int BufHeight, int Wrap, int StartX, int StartY, char *String, int StrLen)
+int blit16_TextNExplicit(blit_pixel *Buffer, blit_pixel Value, int Scale, int BufWidth, int BufHeight, int Wrap, int StartX, int StartY, int StrLen, char *String)
 {
 	int IsNegative = BufWidth < 0;
 	int DrawDir = IsNegative ? -1 : 1;
@@ -151,28 +151,28 @@ int blit16_TextNExplicit(blit_pixel *Buffer, blit_pixel Value, int Scale, int Bu
 #ifndef blit16_MACRO_INLINE
 
 blit_inline int blit16_TextExplicit(blit_pixel *Buffer, blit_pixel Value, int Scale, int BufWidth, int BufHeight, int Wrap, int StartX, int StartY, char *String)
-{ return blit16_TextNExplicit(Buffer, Value, Scale, BufWidth, BufHeight, Wrap, StartX, StartY, String, -1); }
-blit_inline int blit16_TextNProps(blit_props Props, int StartX, int StartY, char *String, int StrLen)
-{ return blit16_TextNExplicit(Props.Buffer, Props.Value, Props.Scale, Props.BufWidth, Props.BufHeight, Props.Wrap, StartX, StartY, String, StrLen); }
+{ return blit16_TextNExplicit(Buffer, Value, Scale, BufWidth, BufHeight, Wrap, StartX, StartY, -1, String); }
+blit_inline int blit16_TextNProps(blit_props Props, int StartX, int StartY, int StrLen, char *String)
+{ return blit16_TextNExplicit(Props.Buffer, Props.Value, Props.Scale, Props.BufWidth, Props.BufHeight, Props.Wrap, StartX, StartY, StrLen, String); }
 blit_inline int blit16_TextProps(blit_props Props, int StartX, int StartY, char *String)
-{ return blit16_TextNExplicit(Props.Buffer, Props.Value, Props.Scale, Props.BufWidth, Props.BufHeight, Props.Wrap, StartX, StartY, String, -1); }
-blit_inline int blit16_TextN(int StartX, int StartY, char *String, int StrLen)
-{ return blit16_TextNExplicit(Blit16.Props.Buffer, Blit16.Props.Value, Blit16.Props.Scale, Blit16.Props.BufWidth, Blit16.Props.BufHeight, Blit16.Props.Wrap, StartX, StartY, String, StrLen); }
+{ return blit16_TextNExplicit(Props.Buffer, Props.Value, Props.Scale, Props.BufWidth, Props.BufHeight, Props.Wrap, StartX, StartY, -1, String); }
+blit_inline int blit16_TextN(int StartX, int StartY, int StrLen, char *String)
+{ return blit16_TextNExplicit(Blit16.Props.Buffer, Blit16.Props.Value, Blit16.Props.Scale, Blit16.Props.BufWidth, Blit16.Props.BufHeight, Blit16.Props.Wrap, StartX, StartY, StrLen, String); }
 blit_inline int blit16_Text(int StartX, int StartY, char *String)
-{ return blit16_TextNExplicit(Blit16.Props.Buffer, Blit16.Props.Value, Blit16.Props.Scale, Blit16.Props.BufWidth, Blit16.Props.BufHeight, Blit16.Props.Wrap, StartX, StartY, String, -1); }
+{ return blit16_TextNExplicit(Blit16.Props.Buffer, Blit16.Props.Value, Blit16.Props.Scale, Blit16.Props.BufWidth, Blit16.Props.BufHeight, Blit16.Props.Wrap, StartX, StartY, -1, String); }
 
 #else/*blit16_NO_INLINE*/
 
 #define blit16_TextExplicit(Buffer, Value, Scale, BufWidth, BufHeight, Wrap, StartX, StartY, String) \
-	blit16_TextNExplicit(Buffer, Value, Scale, BufWidth, BufHeight, Wrap, StartX, StartY, String, -1)
-#define blit16_TextNProps(Props, StartX, StartY, String, StrLen) \
-	blit16_TextNExplicit((Props).Buffer, (Props).Value, (Props).Scale, (Props).BufWidth, (Props).BufHeight, (Props).Wrap, StartX, StartY, String, StrLen)
+	blit16_TextNExplicit(Buffer, Value, Scale, BufWidth, BufHeight, Wrap, StartX, StartY, -1, String)
+#define blit16_TextNProps(Props, StartX, StartY, StrLen, String) \
+	blit16_TextNExplicit((Props).Buffer, (Props).Value, (Props).Scale, (Props).BufWidth, (Props).BufHeight, (Props).Wrap, StartX, StartY, StrLen, String)
 #define blit16_TextProps(Props, StartX, StartY, String) \
-	blit16_TextNExplicit((Props).Buffer, (Props).Value, (Props).Scale, (Props).BufWidth, (Props).BufHeight, (Props).Wrap, StartX, StartY, String, -1)
-#define blit16_TextN(StartX, StartY, String, StrLen) \
-	blit16_TextNExplicit(Blit16.Props.Buffer, Blit16.Props.Value, Blit16.Props.Scale, Blit16.Props.BufWidth, Blit16.Props.BufHeight, Blit16.Props.Wrap, StartX, StartY, String, StrLen)
+	blit16_TextNExplicit((Props).Buffer, (Props).Value, (Props).Scale, (Props).BufWidth, (Props).BufHeight, (Props).Wrap, StartX, StartY, -1, String)
+#define blit16_TextN(StartX, StartY, StrLen, String) \
+	blit16_TextNExplicit(Blit16.Props.Buffer, Blit16.Props.Value, Blit16.Props.Scale, Blit16.Props.BufWidth, Blit16.Props.BufHeight, Blit16.Props.Wrap, StartX, StartY, StrLen, String)
 #define blit16_Text(StartX, StartY, String) \
-	blit16_TextNExplicit(Blit16.Props.Buffer, Blit16.Props.Value, Blit16.Props.Scale, Blit16.Props.BufWidth, Blit16.Props.BufHeight, Blit16.Props.Wrap, StartX, StartY, String, -1)
+	blit16_TextNExplicit(Blit16.Props.Buffer, Blit16.Props.Value, Blit16.Props.Scale, Blit16.Props.BufWidth, Blit16.Props.BufHeight, Blit16.Props.Wrap, StartX, StartY, -1, String)
 
 #endif/*blit16_NO_INLINE*/
 #endif/*blit16_NO_HELPERS*/

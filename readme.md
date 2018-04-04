@@ -30,8 +30,7 @@ _Replace the prefix if using a different font._
 /* returns number of lines printed */
 int blit16_TextNExplicit(unsigned int *Buffer, unsigned int Value, int Scale,
                          int BufWidth, int BufHeight, int Wrap,
-                         int StartX, int StartY, char *String, int StrLen)
-                         unsigned int Value, int StartX, int StartY, char *String, int StrLen);
+                         int StartX, int StartY, int StrLen, char *String)
 /* Buffer              - the array of pixels that you're drawing into.
  * Value               - text colour value, uint by default, but can be changed as shown below.
  *                       Should work for most representations.
@@ -42,9 +41,9 @@ int blit16_TextNExplicit(unsigned int *Buffer, unsigned int Value, int Scale,
  *                       blit_Clip (0) stops printing, blit_Wrap continues on the next line.
  *                       Wrapping is only done per character, not per word.
  * StartX, StartY      - x and y in the buffer for the top-left of the glyph's bounding box.
- * String              - the text you want to draw on the screen.
  * StrLen              - maximum length of string from pointer if '\0' is not hit first.
  *                       If negative, will just run to the first null terminator.
+ * String              - the text you want to draw on the screen.
  */
 
 /* The same as above, but no need to specify negative StrLen */
@@ -53,11 +52,11 @@ blit16_TextExplicit(unsigned int *Buffer, unsigned int Value, int Scale,
                     int StartX, int StartY, char *String)
 
 /* Use a blit_props struct to keep the infrequently changing elements together */
-blit16_TextNProps(blit_props Props, int StartX, int StartY, char *String, int StrLen)
+blit16_TextNProps(blit_props Props, int StartX, int StartY, int StrLen, char *String)
 blit16_TextProps(blit_props Props, int StartX, int StartY, char *String)
 
 /* Use the properties in the global font */
-blit16_TextN(int StartX, int StartY, char *String, int StrLen)
+blit16_TextN(int StartX, int StartY, int StrLen, char *String)
 blit16_Text(int StartX, int StartY, char *String)
 
 /* Scale the font metrics pointed to in the font */
