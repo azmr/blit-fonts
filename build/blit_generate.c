@@ -1,6 +1,6 @@
 #include <stdio.h>
-#include "bitcast16_glyphs.h"
-#include "bitcast32_glyphs.h"
+#include "../src/blit16_glyphs.h"
+#include "../src/blit32_glyphs.h"
 
 #define OUTPUT_ROW_SIZE 8
 #define cGLYPHS 95
@@ -21,7 +21,7 @@ GlyphToBinary(char *Glyph, int size)
 void
 GenerateBinaryFromGlyphs(char *Glyphs, int GlyphSize, FILE *File)
 {
-	fprintf(File, "bitcast%u_glyph bitcast%u_Glyphs[%u] = {\n", GlyphSize, GlyphSize, cGLYPHS);
+	/* fprintf(File, "blit%u_glyph blit%u_Glyphs[%u] = {\n", GlyphSize, GlyphSize, cGLYPHS); */
 	int iGlyph = 0;
 	for(char *Glyph = Glyphs, *LastGlyph = Glyphs + cGLYPHS * GlyphSize;
 		Glyph <= LastGlyph;
@@ -33,7 +33,7 @@ GenerateBinaryFromGlyphs(char *Glyphs, int GlyphSize, FILE *File)
 		}
 		putc('\n', File);
 	}
-	fprintf(File, "};");
+	/* fprintf(File, "};"); */
 }
 
 void
@@ -52,20 +52,34 @@ TESTPrintBinaryChar16(unsigned long long Glyph, int GlyphWidth, int GlyphHeight)
 
 int main()
 {
-	FILE *AllGlyphs = fopen("generatedGlyphs.h", "w");
-	FILE *Glyphs16 = fopen("bitcast16_data.h", "w");
-	FILE *Glyphs32 = fopen("bitcast32_data.h", "w");
-	fputs("typedef unsigned short bitcast16_glyph;\ntypedef unsigned long bitcast32_glyph;\n\n", AllGlyphs);
-	fputs("typedef unsigned short bitcast16_glyph;\n\n", Glyphs16);
-	fputs("typedef unsigned long  bitcast32_glyph;\n\n", Glyphs32);
-	GenerateBinaryFromGlyphs((char *)GlyphArray16, 16, AllGlyphs);
-	GenerateBinaryFromGlyphs((char *)GlyphArray16, 16, Glyphs16);
-	fputs("\n\n", AllGlyphs);
-	GenerateBinaryFromGlyphs((char *)GlyphArray32, 32, AllGlyphs);
-	GenerateBinaryFromGlyphs((char *)GlyphArray32, 32, Glyphs32);
-	fclose(AllGlyphs);
-	fclose(Glyphs16);
-	fclose(Glyphs32);
+	union {
+		FILE *Files[5];
+		struct {
+			FILE *Funcs16  ;
+			FILE *Funcs32  ;
+			FILE *AllGlyphs;
+			FILE *Glyphs16 ;
+			FILE *Glyphs32 ;
+		};
+	} Out;
+	Out.Funcs16   = fopen("blit16_funcs.h", "r");
+	Out.Funcs32   = fopen("blit32_funcs.h", "r");
+	Out.AllGlyphs = fopen("generatedGlyphs.h", "w");
+	Out.Glyphs16  = fopen("blit16_data.h",  "w");
+	Out.Glyphs32  = fopen("blit32_data.h",  "w");
+
+	/* fputs("typedef unsigned short blit16_glyph;\ntypedef unsigned long blit32_glyph;\n\n", Out.AllGlyphs); */
+	/* fputs("typedef unsigned short blit16_glyph;\n\n", Out.Glyphs16); */
+	/* fputs("typedef unsigned long  blit32_glyph;\n\n", Out.Glyphs32); */
+	GenerateBinaryFromGlyphs((char *)GlyphArray16, 16, Out.AllGlyphs);
+	GenerateBinaryFromGlyphs((char *)GlyphArray16, 16, Out.Glyphs16);
+	/* fputs("\n\n", Out.AllGlyphs); */
+	GenerateBinaryFromGlyphs((char *)GlyphArray32, 32, Out.AllGlyphs);
+	GenerateBinaryFromGlyphs((char *)GlyphArray32, 32, Out.Glyphs32);
+	for(int i = 0; i < sizeof(Out.Files)/sizeof(*Out.Files); ++i)
+	{
+		fclose(Out.Files[i]);
+	}
 
 	return 0;
 }
