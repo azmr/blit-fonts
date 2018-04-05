@@ -18,46 +18,64 @@
 #include "blit16test.h"
 #include "blit32test.h"
 
-#define SCALE 2
-#define DRAWWIDTH  (SCALE * 800)
-#define DRAWHEIGHT (SCALE * 200)
-
-#define ArrayLen(arr) (sizeof(arr)/sizeof(*arr))
-
-typedef unsigned int uint;
-
-
-void BlitPGM(int FontID, char *FilePrefix, blit_props BlitProps)
+void BlitPGM(int FontID, int DemoN, blit_props BlitProps)
 {
 	char Filename[128] = {0};
-	sprintf(Filename, "%s%d.pgm", FilePrefix, FontID);
+	sprintf(Filename, "blit%d_%d.pgm", FontID, DemoN);
 	FILE *PGM = fopen(Filename, "wb");
 
-	fprintf(PGM, "P2 %u %u 255\n", DRAWWIDTH, DRAWHEIGHT);
+	fprintf(PGM, "P2 %u %u 255\n", BlitProps.BufWidth, BlitProps.BufHeight);
 	for(int i = 0; i < BlitProps.BufWidth*BlitProps.BufHeight; ++i)
 	{ fprintf(PGM, "%u ", BlitProps.Buffer[i]); }
 
 	fclose(PGM);
 }
 
-void PrintFontDemo(int FontID, blit_props BlitProps)
+void FontDemo1(int FontID, blit_props BlitProps, int x, int y)
 {
-	char TestString[] = "for(int i = 0; i < 7 && *bool == 1; ++i)\n"
-					   "{\n"
-					   "\tDo_Stuff(Things[a ? 2*i : j]);\n"
-					   "}\n"
-					   "Not too bad!\n"
-					   "abcdefghijklmnopqrstuvwxyz\n"
-					   "ABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
-					   "!@#$%^&*()-=~`\\\"'\n"
-					   "1234567890_+|\n"
-					   "email me at `????????@gmail.com`\n";
+	char TestString[] =
+		"\n"
+		" abcdefghijklm\n"
+		" nopqrstuvwxyz\n"
+		" ABCDEFGHIJKLM\n"
+		" NOPQRSTUVWXYZ\n"
+		" 0123456789+-=\n"
+		"  {[(</|\\>)]}\n"
+		"  !@#$%^&*~_?\n"
+		"    ,;`\"':.";
+#define W1 15
+#define H1 10
 	switch(FontID)
 	{
-		case 16: blit16_TextProps(BlitProps, 30, 30, TestString); break;
-		case 32: blit32_TextProps(BlitProps, 30, 30, TestString); break;
+		case 16: blit16_TextProps(BlitProps, x, y, TestString); break;
+		case 32: blit32_TextProps(BlitProps, x, y, TestString); break;
 	}
-	BlitPGM(FontID, "string", BlitProps);
+	BlitPGM(FontID, 1, BlitProps);
+}
+
+void FontDemo2(int FontID, blit_props BlitProps, int x, int y)
+{
+	char TestString[] =
+		"\n"
+#define L2  " for(int i = 0; i < 7 && *bool == 1; ++i)\n"
+			L2
+			" {\n"
+			" \tDo_Stuff(Things[a ? 2*i : j]);\n"
+			" }\n"
+			" Not too bad!\n"
+			" abcdefghijklmnopqrstuvwxyz\n"
+			" ABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
+			" !@#$%^&*()-=~`\\\"'\n"
+			" 1234567890_+|\n"
+			" email me at `????????@gmail.com`\n";
+#define W2 (sizeof(L2)-1)
+#define H2 12
+	switch(FontID)
+	{
+		case 16: blit16_TextProps(BlitProps, x, y, TestString); break;
+		case 32: blit32_TextProps(BlitProps, x, y, TestString); break;
+	}
+	BlitPGM(FontID, 2, BlitProps);
 }
 
 
@@ -65,10 +83,10 @@ void PrintChar(int FontID, blit_props BlitProps, int Col, int Row, char c)
 {
 	switch(FontID)
 	{
-		case 16: blit16_TextNProps(BlitProps, BlitProps.Scale * (40 + Col * blit16_ADVANCE),
-						                      BlitProps.Scale * (30 + Row * blit16_ROW_ADVANCE), 1, &c); break;
-		case 32: blit32_TextNProps(BlitProps, BlitProps.Scale * (30 + Col * blit32_ADVANCE),
-						                      BlitProps.Scale * (30 + Row * blit32_ROW_ADVANCE), 1, &c); break;
+		case 16: blit16_TextNProps(BlitProps, BlitProps.Scale * (2 + Col * blit16_ADVANCE),
+						                      BlitProps.Scale * (2 + Row * blit16_ROW_ADVANCE), 1, &c); break;
+		case 32: blit32_TextNProps(BlitProps, BlitProps.Scale * (2 + Col * blit32_ADVANCE),
+						                      BlitProps.Scale * (2 + Row * blit32_ROW_ADVANCE), 1, &c); break;
 	}
 }
 
@@ -92,7 +110,7 @@ int PrintRange(int FontID, blit_props BlitProps, int *Col, int *Row, char FirstC
 	return CharsPrinted;
 }
 
-void PrintFont(int FontID, blit_props BlitProps)
+void FontDemo3(int FontID, blit_props BlitProps)
 {
 	int Row = 0; int Col = -1;
 	PrintRange(FontID, BlitProps, &Col, &Row, '!', '@');
@@ -101,29 +119,28 @@ void PrintFont(int FontID, blit_props BlitProps)
 	PrintRange(FontID, BlitProps, &Col, &Row, 'A', 'Z');
 	++Row; Col = -1;
 	PrintRange(FontID, BlitProps, &Col, &Row, 'a', 'z');
-	BlitPGM(FontID, "test", BlitProps);
+	BlitPGM(FontID, 3, BlitProps);
 }
 
 int main(int cargs, char **args)
 {
-	blit_props BlitProps = { 0, 255, SCALE, DRAWWIDTH, DRAWHEIGHT };
+#define SCALE 4
+#define WIDTH(d, b)  (SCALE * W##d * blit## b ##_ADVANCE)
+#define HEIGHT(d, b) (SCALE * H##d * blit## b ##_ROW_ADVANCE)
+#define MAXWIDTH(d)  WIDTH (d, 32)
+#define MAXHEIGHT(d) HEIGHT(d, 32)
+#define CENTRE_FONT(d, b) (MAXWIDTH(d)/2-WIDTH(d, b)/2), (MAXHEIGHT(d)/2-HEIGHT(d, b)/2)
+#define DEMO(d, b) \
+	puts("Demo "#d", blit"#b);\
+	static unsigned int image## d ##_## b[MAXWIDTH(d) * MAXHEIGHT(d)] = {0};\
+	blit_props Props## d ##_## b = { image## d ##_## b, 255, SCALE, MAXWIDTH(d), MAXHEIGHT(d) };\
+	FontDemo## d(b, Props## d ##_## b, CENTRE_FONT(d, b));
 
-	puts("Demo 1");
-	static unsigned int image1_16[DRAWWIDTH * DRAWHEIGHT] = {0};
-	static unsigned int image1_32[DRAWWIDTH * DRAWHEIGHT] = {0};
-	BlitProps.Buffer = image1_16;
-	PrintFontDemo(16, BlitProps);
-	BlitProps.Buffer = image1_32;
-	PrintFontDemo(32, BlitProps);
-	
-	puts("Demo 2");
-	BlitProps.Scale *= 2;
-	static unsigned int image2_16[DRAWWIDTH * DRAWHEIGHT] = {0};
-	static unsigned int image2_32[DRAWWIDTH * DRAWHEIGHT] = {0};
-	BlitProps.Buffer = image2_16;
-	PrintFont(16, BlitProps);
-	BlitProps.Buffer = image2_32;
-	PrintFont(32, BlitProps);
+	DEMO(1, 16);
+	DEMO(1, 32);
+
+	DEMO(2, 16);
+	DEMO(2, 32);
 
 	return 0;
 }
