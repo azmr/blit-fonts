@@ -1,6 +1,21 @@
+/* ISC License
+ * Copyright (c) 2018 Andrew Reece
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 #ifndef blit16_H
 
-#define blit16_WIDTH 3
+#define blit16_WIDTH  3
 #define blit16_HEIGHT 5
 #define blit16_ADVANCE (blit16_WIDTH + 1)
 #define blit16_DESCENDER 1
@@ -10,11 +25,10 @@
 
 typedef unsigned short blit16_glyph;
 
+#ifndef blit_H
 #ifndef blit_pixel
 #define blit_pixel unsigned int
 #endif/*blit_pixel*/
-
-#ifndef blit_H
 #ifndef blit_NO_INLINE
 #define blit_inline inline
 #else /*blit_NO_INLINE*/
