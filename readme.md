@@ -11,6 +11,7 @@ I see them being useful for quickly getting up debug text on a PC without having
 	- [Functions](#functions)
 	- [Constants](#constants)
 	- [Types](#types)
+	- [Globals](#globals)
 	- [Compile-time options](#compile-time-options)
 - [How it works](#how-it-works)
 - [Recommended Libraries](#recommended-libraries)
@@ -96,8 +97,8 @@ typedef struct blit_props
 
 /* This is just a convenience wrapper around the array:
  * - simplify calls even more
- * - you can reference the constants in a debugger
- * - can keep scaled versions of the constants above
+ * - reference the constants in a debugger
+ * - keep scaled versions of the constants above
  */
 typedef struct blit16_font
 {
@@ -111,8 +112,17 @@ typedef struct blit16_font
 } blit16_font;
 ```
 
-### Compile-time options
+### Globals
+``` c
+/* Contains the main font data.
+ * Set the Props for this to use the blit16_Text[N] functions, and
+ * (optionally) use blit16_Scale on it to keep the metrics up to date.
+ */
+blit16_font Blit16
 ```
+
+### Compile-time options
+``` c
 /* determines the pixel type that blit draws (defaults to unsigned int) */
 #define blit_pixel your_pixel_type_here
 
