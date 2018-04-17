@@ -1,6 +1,8 @@
 # Blit
 _A family of small, fast, and simple bitmap fonts in single-file C headers_
 
+[[go to repository]](https://github.com/azmr/blit-fonts)
+
 These are not intended as a replacement for fancy user fonts.
 I see them being useful for quickly getting up debug text on a PC without having to link an external font file, or for embedded developers with limited memory.
 
